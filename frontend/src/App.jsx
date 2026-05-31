@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import YouTube from "react-youtube";
 import axios from "axios";
 import socket from "./socket";
+import Chat from "./Chat";
 
 function App() {
   const [roomId, setRoomId] = useState("");
@@ -10,10 +11,21 @@ function App() {
 
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState([]);
-
   const [queue, setQueue] = useState([]);
-
+  
+  // Custom Toast Message State Layer
+  const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
+  
   const playerRef = useRef(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+
+  // Helper trigger to handle smooth auto-dismissing notification banners
+  const showNotification = (message, type = "success") => {
+    setToast({ visible: true, message, type });
+    setTimeout(() => {
+      setToast({ visible: false, message: "", type: "success" });
+    }, 4000);
+  };
 
   useEffect(() => {
     socket.on("video-changed", (id) => {
@@ -22,14 +34,8 @@ function App() {
 
     socket.on("room-state", (data) => {
       setRoomState(data);
-
-      if (data.videoId) {
-        setVideoId(data.videoId);
-      }
-
-      if (data.queue) {
-        setQueue(data.queue);
-      }
+      if (data.videoId) setVideoId(data.videoId);
+      if (data.queue) setQueue(data.queue);
     });
 
     socket.on("queue-updated", (newQueue) => {
@@ -37,14 +43,16 @@ function App() {
     });
 
     socket.on("play", () => {
-      if (playerRef.current) {
+      if (playerRef.current && typeof playerRef.current.playVideo === "function") {
         playerRef.current.playVideo();
+        setIsPlaying(true);
       }
     });
 
     socket.on("pause", () => {
-      if (playerRef.current) {
+      if (playerRef.current && typeof playerRef.current.pauseVideo === "function") {
         playerRef.current.pauseVideo();
+        setIsPlaying(false);
       }
     });
 
@@ -66,8 +74,7 @@ function App() {
       ) {
         socket.emit("time-update", {
           roomId,
-          currentTime:
-            playerRef.current.getCurrentTime(),
+          currentTime: playerRef.current.getCurrentTime(),
         });
       }
     }, 2000);
@@ -79,38 +86,32 @@ function App() {
     const cleanRoomId = roomId.trim();
 
     if (!cleanRoomId) {
-      alert("Enter Room ID");
+      showNotification("Please enter a valid Room ID key!", "error");
       return;
     }
 
     socket.emit("join-room", cleanRoomId);
-
-    alert(`Joined ${cleanRoomId}`);
+    // Fires off our modern pop-up panel notification instantly
+    showNotification(`✨ Connected Successfully! Joined Room Channel: "${cleanRoomId}"`, "success");
   };
 
   const searchSongs = async () => {
     if (!searchQuery.trim()) return;
 
     try {
-      const res = await axios.get(
-        "http://localhost:5000/search",
-        {
-          params: {
-            q: searchQuery,
-          },
-        }
-      );
-
+      const res = await axios.get("http://localhost:5000/search", {
+        params: { q: searchQuery },
+      });
       setResults(res.data);
     } catch (err) {
       console.log(err);
-      alert("Search Failed");
+      showNotification("YouTube search query retrieval failed", "error");
     }
   };
 
   const addSongToQueue = (video) => {
     if (!roomId.trim()) {
-      alert("Join a room first");
+      showNotification("You must establish or join a room first!", "error");
       return;
     }
 
@@ -119,203 +120,177 @@ function App() {
       song: {
         videoId: video.id.videoId,
         title: video.snippet.title,
-        thumbnail:
-          video.snippet.thumbnails.default.url,
+        thumbnail: video.snippet.thumbnails.default.url,
       },
     });
+    showNotification("Added track to shared room playlist");
+  };
+
+  const removeSongFromQueue = (index) => {
+    if (!roomId.trim()) return;
+    socket.emit("remove-from-queue", { roomId, index });
+    showNotification("Track dropped from playlist", "error");
   };
 
   const playSong = (song) => {
     setVideoId(song.videoId);
-
-    socket.emit("change-video", {
-      roomId,
-      videoId: song.videoId,
-    });
+    socket.emit("change-video", { roomId, videoId: song.videoId });
   };
 
+  const handleBroadcastPlay = () => socket.emit("play", roomId);
+  const handleBroadcastPause = () => socket.emit("pause", roomId);
+
   return (
-    <div
-      style={{
-        padding: "20px",
-        maxWidth: "1000px",
-        margin: "auto",
-      }}
-    >
-      <h1>🎵 Sync Room</h1>
-
-      <input
-        placeholder="Room ID"
-        value={roomId}
-        onChange={(e) =>
-          setRoomId(e.target.value)
-        }
-      />
-
-      <button onClick={joinRoom}>
-        Join Room
-      </button>
-
-      <hr />
-
-      <h2>Search Song</h2>
-
-      <input
-        placeholder="Search any song..."
-        value={searchQuery}
-        onChange={(e) =>
-          setSearchQuery(e.target.value)
-        }
-      />
-
-      <button onClick={searchSongs}>
-        Search
-      </button>
-
-      <br />
-      <br />
-
-      {results.map((video) => (
-        <div
-          key={video.id.videoId}
-          style={{
-            display: "flex",
-            gap: "10px",
-            alignItems: "center",
-            border: "1px solid gray",
-            padding: "10px",
-            marginBottom: "10px",
-          }}
-        >
-          <img
-            src={
-              video.snippet.thumbnails.default.url
-            }
-            alt="thumb"
-          />
-
-          <div
-            style={{
-              flex: 1,
-            }}
-          >
-            <p>
-              {video.snippet.title}
-            </p>
-
-            <small>
-              {
-                video.snippet.channelTitle
-              }
-            </small>
+    <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-400 relative">
+      
+      {/* GLOWING POP-UP TOAST NOTIFICATION CONTAINER HUB */}
+      {toast.visible && (
+        <div className="fixed top-6 right-6 z-[100] animate-fadeIn">
+          <div className={`backdrop-blur-xl border px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 max-w-sm transition-all duration-300 ${
+            toast.type === "error" 
+              ? "bg-red-950/80 border-red-500/30 text-red-200 shadow-red-500/5" 
+              : "bg-emerald-950/80 border-emerald-500/30 text-emerald-200 shadow-emerald-500/5"
+          }`}>
+            <div className={`w-2 h-2 rounded-full ${toast.type === "error" ? "bg-red-400" : "bg-emerald-400 animate-pulse"}`}></div>
+            <span className="text-xs font-semibold tracking-wide leading-relaxed">{toast.message}</span>
           </div>
-
-          <button
-            onClick={() =>
-              addSongToQueue(video)
-            }
-          >
-            Add To Queue
-          </button>
         </div>
-      ))}
-
-      <hr />
-
-      <h2>🎶 Shared Queue</h2>
-
-      {queue.length === 0 && (
-        <p>No songs in queue</p>
       )}
 
-      {queue.map((song, index) => (
-        <div
-          key={index}
-          style={{
-            display: "flex",
-            gap: "10px",
-            alignItems: "center",
-            border: "1px solid gray",
-            padding: "10px",
-            marginBottom: "10px",
-          }}
-        >
-          <img
-            src={song.thumbnail}
-            alt="thumb"
+      {/* Global Navigation Header View */}
+      <header className="border-b border-slate-800 bg-[#0f1524]/80 px-6 py-4 flex items-center justify-between shadow-md shrink-0">
+        <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent flex items-center gap-2">
+          <span>🎵</span> MusicRoom Sync
+        </h1>
+        <div className="flex gap-2">
+          <input
+            placeholder="Enter Room ID Key..."
+            value={roomId}
+            onChange={(e) => setRoomId(e.target.value)}
+            className="bg-[#05070d] border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono"
           />
-
-          <div
-            style={{
-              flex: 1,
-            }}
+          <button 
+            onClick={joinRoom} 
+            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-1.5 rounded-lg text-xs transition-all uppercase tracking-wide shadow-md active:scale-95"
           >
-            {song.title}
-          </div>
-
-          <button
-            onClick={() =>
-              playSong(song)
-            }
-          >
-            Play
+            Join Room
           </button>
         </div>
-      ))}
+      </header>
 
-      <hr />
+      {/* Main Grid Interactive Canvas Layout */}
+      <main className="flex-1 max-w-[1500px] w-full mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-stretch">
+        
+        {/* PANEL LEFT: SEARCH CRADLE */}
+        <div className="lg:col-span-3 flex flex-col gap-6">
+          <div className="bg-[#121a2e]/40 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col h-full">
+            <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+              <span className="w-1 h-2 bg-emerald-400 rounded-full"></span>
+              Search Shared Songs
+            </h2>
+            <div className="flex gap-2 mb-3">
+              <input
+                placeholder="Search catalog titles..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && searchSongs()}
+                className="flex-1 bg-[#05070d] border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+              />
+              <button onClick={searchSongs} className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-3 py-2 rounded-xl text-xs uppercase shrink-0">
+                Find
+              </button>
+            </div>
 
-      {videoId && (
-        <>
-          <YouTube
-            videoId={videoId}
-            onReady={(event) => {
-              playerRef.current =
-                event.target;
+            {results.length > 0 && (
+              <div className="max-h-[380px] overflow-y-auto bg-[#05070d]/60 rounded-xl border border-slate-800 p-2 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
+                {results.map((video) => (
+                  <div key={video.id.videoId} className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-900/40 transition-colors group">
+                    <img src={video.snippet.thumbnails.default.url} className="w-10 h-8 object-cover rounded shadow shrink-0" alt="thumb" />
+                    <div className="truncate flex-1">
+                      <p className="text-[11px] font-medium text-slate-300 group-hover:text-emerald-400 truncate">{video.snippet.title}</p>
+                    </div>
+                    <button 
+                      onClick={() => addSongToQueue(video)} 
+                      className="bg-emerald-500/10 hover:bg-emerald-500 text-emerald-400 hover:text-slate-950 font-bold px-2 py-1 rounded text-[9px] uppercase shrink-0"
+                    >
+                      + Q
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
 
-              if (
-                roomState &&
-                roomState.currentTime > 0
-              ) {
-                playerRef.current.seekTo(
-                  roomState.currentTime,
-                  true
-                );
+        {/* PANEL CENTER: PLAYER MATRIX WINDOW */}
+        <div className="lg:col-span-6 flex flex-col gap-6">
+          <div className="bg-[#121a2e]/30 border border-slate-800/60 rounded-3xl p-5 shadow-2xl flex flex-col justify-between items-center flex-1 min-h-[380px]">
+            <div className="w-full aspect-video rounded-xl overflow-hidden shadow-2xl border border-slate-900 bg-black flex items-center justify-center relative">
+              {videoId ? (
+                <div className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:rounded-xl">
+                  <YouTube
+                    videoId={videoId}
+                    className="w-full h-full"
+                    containerClassName="w-full h-full"
+                    opts={{ playerVars: { controls: 1, autoplay: 1 } }}
+                    onReady={(event) => {
+                      playerRef.current = event.target;
+                      if (roomState && roomState.currentTime > 0) {
+                        playerRef.current.seekTo(roomState.currentTime, true);
+                        if (roomState.isPlaying) playerRef.current.playVideo();
+                      }
+                    }}
+                    onPlay={() => setIsPlaying(true)}
+                    onPause={() => setIsPlaying(false)}
+                  />
+                </div>
+              ) : (
+                <p className="text-xs text-slate-600 uppercase tracking-widest font-mono p-6 text-center">
+                  Monitor Screen Standby.
+                </p>
+              )}
+            </div>
 
-                if (
-                  roomState.isPlaying
-                ) {
-                  playerRef.current.playVideo();
-                }
-              }
-            }}
-          />
+            {videoId && (
+              <div className="flex items-center gap-3 bg-slate-950/40 border border-slate-800 p-2.5 rounded-xl mt-4 shadow-inner">
+                <button onClick={handleBroadcastPause} className="bg-slate-900 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wide text-slate-300 transition-colors">
+                  ⏸ Pause Sync
+                </button>
+                <button onClick={handleBroadcastPlay} className="bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wide transition-opacity hover:opacity-90">
+                  ▶ Play Sync
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
 
-          <br />
+        {/* PANEL RIGHT: QUEUE TRACKER AND CHAT FEED COMPONENT LINK */}
+        <div className="lg:col-span-3 flex flex-col gap-5 justify-between">
+          <div className="bg-[#121a2e]/20 border border-slate-800 rounded-2xl p-3 shadow-xl h-[160px] overflow-y-auto flex flex-col scrollbar-thin scrollbar-thumb-slate-900">
+            <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">🎶 Playlist Queue ({queue.length})</h3>
+            <div className="space-y-1.5 flex-1">
+              {queue.length === 0 ? (
+                <p className="text-[10px] text-slate-600 italic text-center py-4">Queue is empty</p>
+              ) : (
+                queue.map((song, index) => (
+                  <div key={index} className="flex items-center justify-between gap-2 p-1 rounded bg-slate-950/30 border border-slate-900/40">
+                    <span className="text-[11px] text-slate-300 truncate font-medium flex-1 px-1">{song.title}</span>
+                    <div className="flex gap-1.5 shrink-0">
+                      <button onClick={() => playSong(song)} className="text-emerald-400 font-bold hover:text-emerald-300 text-[10px] uppercase">Play</button>
+                      <button onClick={() => removeSongFromQueue(index)} className="text-red-400 font-bold hover:text-red-300 text-[10px] uppercase font-mono px-0.5">✕</button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </div>
 
-          <button
-            onClick={() =>
-              socket.emit(
-                "play",
-                roomId
-              )
-            }
-          >
-            ▶ Play
-          </button>
+          <div className="flex-1">
+            <Chat roomId={roomId} showNotification={showNotification} />
+          </div>
+        </div>
 
-          <button
-            onClick={() =>
-              socket.emit(
-                "pause",
-                roomId
-              )
-            }
-          >
-            ⏸ Pause
-          </button>
-        </>
-      )}
+      </main>
     </div>
   );
 }

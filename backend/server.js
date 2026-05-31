@@ -48,6 +48,18 @@ io.on("connection", (socket) => {
     console.log(`${socket.id} joined ${roomId}`);
   });
 
+  // REALTIME CHAT RESPONSE HANDLER
+  socket.on("chat-message", ({ roomId, msg }) => {
+    if (!roomId) return;
+    
+    // Broadcast the message structure securely to everyone inside the targeted room
+    io.to(roomId).emit("incoming-message", {
+      id: socket.id,
+      text: msg,
+      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    });
+  });
+
   // CHANGE VIDEO
   socket.on("change-video", ({ roomId, videoId }) => {
     if (!rooms[roomId]) return;
@@ -55,31 +67,30 @@ io.on("connection", (socket) => {
     rooms[roomId].videoId = videoId;
     rooms[roomId].currentTime = 0;
 
-    io.to(roomId).emit(
-      "video-changed",
-      videoId
-    );
+    io.to(roomId).emit("video-changed", videoId);
   });
 
   // ADD TO QUEUE
-  socket.on(
-    "add-to-queue",
-    ({ roomId, song }) => {
-      if (!rooms[roomId]) return;
+  socket.on("add-to-queue", ({ roomId, song }) => {
+    if (!rooms[roomId]) return;
 
-      rooms[roomId].queue.push(song);
+    rooms[roomId].queue.push(song);
 
-      console.log(
-        "QUEUE:",
-        rooms[roomId].queue
-      );
+    console.log("QUEUE:", rooms[roomId].queue);
 
-      io.to(roomId).emit(
-        "queue-updated",
-        rooms[roomId].queue
-      );
-    }
-  );
+    io.to(roomId).emit("queue-updated", rooms[roomId].queue);
+  });
+
+  // REMOVE FROM QUEUE
+  socket.on("remove-from-queue", ({ roomId, index }) => {
+    if (!rooms[roomId] || !rooms[roomId].queue[index]) return;
+
+    rooms[roomId].queue.splice(index, 1);
+
+    console.log(`REMOVED item at index ${index} from room ${roomId}`);
+
+    io.to(roomId).emit("queue-updated", rooms[roomId].queue);
+  });
 
   // PLAY
   socket.on("play", (roomId) => {
@@ -100,34 +111,20 @@ io.on("connection", (socket) => {
   });
 
   // TIME UPDATE
-  socket.on(
-    "time-update",
-    ({ roomId, currentTime }) => {
-      if (!rooms[roomId]) return;
+  socket.on("time-update", ({ roomId, currentTime }) => {
+    if (!rooms[roomId]) return;
 
-      rooms[roomId].currentTime =
-        currentTime;
-    }
-  );
+    rooms[roomId].currentTime = currentTime;
+  });
 
   socket.on("disconnect", () => {
-    console.log(
-      "Disconnected:",
-      socket.id
-    );
+    console.log("Disconnected:", socket.id);
   });
 });
 
 // DEBUG
 setInterval(() => {
-  console.log(
-    "ROOMS:",
-    JSON.stringify(
-      rooms,
-      null,
-      2
-    )
-  );
+  console.log("ROOMS:", JSON.stringify(rooms, null, 2));
 }, 5000);
 
 // SEARCH API
@@ -135,23 +132,20 @@ app.get("/search", async (req, res) => {
   try {
     const query = req.query.q;
 
-    const response =
-      await axios.get(
-        "https://www.googleapis.com/youtube/v3/search",
-        {
-          params: {
-            part: "snippet",
-            q: query,
-            maxResults: 10,
-            type: "video",
-            key: process.env.YOUTUBE_API_KEY,
-          },
-        }
-      );
-
-    res.json(
-      response.data.items
+    const response = await axios.get(
+      "https://www.googleapis.com/youtube/v3/search",
+      {
+        params: {
+          part: "snippet",
+          q: query,
+          maxResults: 10,
+          type: "video",
+          key: process.env.YOUTUBE_API_KEY,
+        },
+      }
     );
+
+    res.json(response.data.items);
   } catch (err) {
     console.log(err.message);
 
@@ -162,7 +156,5 @@ app.get("/search", async (req, res) => {
 });
 
 server.listen(5000, () => {
-  console.log(
-    "Server Running on Port 5000"
-  );
+  console.log("Server Running on Port 5000");
 });
