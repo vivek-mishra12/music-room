@@ -9,7 +9,11 @@ const axios = require("axios");
 
 const app = express();
 
-app.use(cors());
+app.use(cors({
+  origin: "https://music-room-umber.vercel.app",
+  methods: ["GET", "POST"],
+  credentials: true
+}));
 
 const server = http.createServer(app);
 
