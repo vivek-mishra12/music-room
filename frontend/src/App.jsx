@@ -11,6 +11,8 @@ function App() {
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState([]);
 
+  const [queue, setQueue] = useState([]);
+
   const playerRef = useRef(null);
 
   useEffect(() => {
@@ -24,6 +26,14 @@ function App() {
       if (data.videoId) {
         setVideoId(data.videoId);
       }
+
+      if (data.queue) {
+        setQueue(data.queue);
+      }
+    });
+
+    socket.on("queue-updated", (newQueue) => {
+      setQueue(newQueue);
     });
 
     socket.on("play", () => {
@@ -41,6 +51,7 @@ function App() {
     return () => {
       socket.off("video-changed");
       socket.off("room-state");
+      socket.off("queue-updated");
       socket.off("play");
       socket.off("pause");
     };
@@ -55,7 +66,8 @@ function App() {
       ) {
         socket.emit("time-update", {
           roomId,
-          currentTime: playerRef.current.getCurrentTime(),
+          currentTime:
+            playerRef.current.getCurrentTime(),
         });
       }
     }, 2000);
@@ -92,16 +104,33 @@ function App() {
       setResults(res.data);
     } catch (err) {
       console.log(err);
-      alert("Search failed");
+      alert("Search Failed");
     }
   };
 
-  const selectSong = (selectedVideoId) => {
-    setVideoId(selectedVideoId);
+  const addSongToQueue = (video) => {
+    if (!roomId.trim()) {
+      alert("Join a room first");
+      return;
+    }
+
+    socket.emit("add-to-queue", {
+      roomId,
+      song: {
+        videoId: video.id.videoId,
+        title: video.snippet.title,
+        thumbnail:
+          video.snippet.thumbnails.default.url,
+      },
+    });
+  };
+
+  const playSong = (song) => {
+    setVideoId(song.videoId);
 
     socket.emit("change-video", {
       roomId,
-      videoId: selectedVideoId,
+      videoId: song.videoId,
     });
   };
 
@@ -149,9 +178,6 @@ function App() {
       {results.map((video) => (
         <div
           key={video.id.videoId}
-          onClick={() =>
-            selectSong(video.id.videoId)
-          }
           style={{
             display: "flex",
             gap: "10px",
@@ -159,17 +185,20 @@ function App() {
             border: "1px solid gray",
             padding: "10px",
             marginBottom: "10px",
-            cursor: "pointer",
           }}
         >
           <img
             src={
               video.snippet.thumbnails.default.url
             }
-            alt="thumbnail"
+            alt="thumb"
           />
 
-          <div>
+          <div
+            style={{
+              flex: 1,
+            }}
+          >
             <p>
               {video.snippet.title}
             </p>
@@ -180,6 +209,57 @@ function App() {
               }
             </small>
           </div>
+
+          <button
+            onClick={() =>
+              addSongToQueue(video)
+            }
+          >
+            Add To Queue
+          </button>
+        </div>
+      ))}
+
+      <hr />
+
+      <h2>🎶 Shared Queue</h2>
+
+      {queue.length === 0 && (
+        <p>No songs in queue</p>
+      )}
+
+      {queue.map((song, index) => (
+        <div
+          key={index}
+          style={{
+            display: "flex",
+            gap: "10px",
+            alignItems: "center",
+            border: "1px solid gray",
+            padding: "10px",
+            marginBottom: "10px",
+          }}
+        >
+          <img
+            src={song.thumbnail}
+            alt="thumb"
+          />
+
+          <div
+            style={{
+              flex: 1,
+            }}
+          >
+            {song.title}
+          </div>
+
+          <button
+            onClick={() =>
+              playSong(song)
+            }
+          >
+            Play
+          </button>
         </div>
       ))}
 
