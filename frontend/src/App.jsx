@@ -1,12 +1,15 @@
 import { useState, useRef, useEffect } from "react";
 import YouTube from "react-youtube";
+import axios from "axios";
 import socket from "./socket";
 
 function App() {
   const [roomId, setRoomId] = useState("");
-  const [videoUrl, setVideoUrl] = useState("");
   const [videoId, setVideoId] = useState("");
   const [roomState, setRoomState] = useState(null);
+
+  const [searchQuery, setSearchQuery] = useState("");
+  const [results, setResults] = useState([]);
 
   const playerRef = useRef(null);
 
@@ -16,8 +19,6 @@ function App() {
     });
 
     socket.on("room-state", (data) => {
-      console.log("Room State:", data);
-
       setRoomState(data);
 
       if (data.videoId) {
@@ -63,83 +64,134 @@ function App() {
   }, [roomId]);
 
   const joinRoom = () => {
-    if (!roomId) {
+    const cleanRoomId = roomId.trim();
+
+    if (!cleanRoomId) {
       alert("Enter Room ID");
       return;
     }
 
-    socket.emit("join-room", roomId);
+    socket.emit("join-room", cleanRoomId);
 
-    alert("Joined Room");
+    alert(`Joined ${cleanRoomId}`);
   };
 
-  const extractVideoId = () => {
-    let id = "";
+  const searchSongs = async () => {
+    if (!searchQuery.trim()) return;
 
     try {
-      const url = new URL(videoUrl);
+      const res = await axios.get(
+        "http://localhost:5000/search",
+        {
+          params: {
+            q: searchQuery,
+          },
+        }
+      );
 
-      if (url.hostname.includes("youtube.com")) {
-        id = url.searchParams.get("v");
-      }
-
-      if (url.hostname.includes("youtu.be")) {
-        id = url.pathname.slice(1);
-      }
-    } catch {
-      alert("Invalid URL");
-      return;
+      setResults(res.data);
+    } catch (err) {
+      console.log(err);
+      alert("Search failed");
     }
+  };
 
-    if (!id) {
-      alert("Invalid Youtube URL");
-      return;
-    }
-
-    setVideoId(id);
+  const selectSong = (selectedVideoId) => {
+    setVideoId(selectedVideoId);
 
     socket.emit("change-video", {
       roomId,
-      videoId: id,
+      videoId: selectedVideoId,
     });
   };
 
   return (
-    <div style={{ padding: "20px" }}>
+    <div
+      style={{
+        padding: "20px",
+        maxWidth: "1000px",
+        margin: "auto",
+      }}
+    >
       <h1>🎵 Sync Room</h1>
 
       <input
         placeholder="Room ID"
         value={roomId}
-        onChange={(e) => setRoomId(e.target.value)}
+        onChange={(e) =>
+          setRoomId(e.target.value)
+        }
       />
 
       <button onClick={joinRoom}>
-        Join
+        Join Room
       </button>
 
-      <br />
-      <br />
+      <hr />
+
+      <h2>Search Song</h2>
 
       <input
-        placeholder="Youtube URL"
-        value={videoUrl}
-        onChange={(e) => setVideoUrl(e.target.value)}
+        placeholder="Search any song..."
+        value={searchQuery}
+        onChange={(e) =>
+          setSearchQuery(e.target.value)
+        }
       />
 
-      <button onClick={extractVideoId}>
-        Load Video
+      <button onClick={searchSongs}>
+        Search
       </button>
 
       <br />
       <br />
+
+      {results.map((video) => (
+        <div
+          key={video.id.videoId}
+          onClick={() =>
+            selectSong(video.id.videoId)
+          }
+          style={{
+            display: "flex",
+            gap: "10px",
+            alignItems: "center",
+            border: "1px solid gray",
+            padding: "10px",
+            marginBottom: "10px",
+            cursor: "pointer",
+          }}
+        >
+          <img
+            src={
+              video.snippet.thumbnails.default.url
+            }
+            alt="thumbnail"
+          />
+
+          <div>
+            <p>
+              {video.snippet.title}
+            </p>
+
+            <small>
+              {
+                video.snippet.channelTitle
+              }
+            </small>
+          </div>
+        </div>
+      ))}
+
+      <hr />
 
       {videoId && (
         <>
           <YouTube
             videoId={videoId}
             onReady={(event) => {
-              playerRef.current = event.target;
+              playerRef.current =
+                event.target;
 
               if (
                 roomState &&
@@ -150,7 +202,9 @@ function App() {
                   true
                 );
 
-                if (roomState.isPlaying) {
+                if (
+                  roomState.isPlaying
+                ) {
                   playerRef.current.playVideo();
                 }
               }
@@ -160,15 +214,25 @@ function App() {
           <br />
 
           <button
-            onClick={() => socket.emit("play", roomId)}
+            onClick={() =>
+              socket.emit(
+                "play",
+                roomId
+              )
+            }
           >
-            Play
+            ▶ Play
           </button>
 
           <button
-            onClick={() => socket.emit("pause", roomId)}
+            onClick={() =>
+              socket.emit(
+                "pause",
+                roomId
+              )
+            }
           >
-            Pause
+            ⏸ Pause
           </button>
         </>
       )}
