@@ -15,7 +15,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   cors: {
-    origin: "*",
+    origin: "https://music-room-umber.vercel.app",
     methods: ["GET", "POST"],
   },
 });
