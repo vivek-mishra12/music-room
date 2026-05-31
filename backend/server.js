@@ -9,6 +9,7 @@ const axios = require("axios");
 
 const app = express();
 
+// 1. EXPRESS CORS CONFIGURATION: Trust your production Vercel frontend url
 app.use(cors({
   origin: "https://music-room-umber.vercel.app",
   methods: ["GET", "POST"],
@@ -17,11 +18,15 @@ app.use(cors({
 
 const server = http.createServer(app);
 
+// 2. SOCKET.IO CORS CONFIGURATION: Trust your production Vercel frontend url
 const io = new Server(server, {
   cors: {
     origin: "https://music-room-umber.vercel.app",
     methods: ["GET", "POST"],
+    credentials: true
   },
+  // Render handles proxies dynamically; adding explicit transport fallbacks guarantees stability
+  transports: ["websocket", "polling"] 
 });
 
 const rooms = {};
@@ -56,7 +61,6 @@ io.on("connection", (socket) => {
   socket.on("chat-message", ({ roomId, msg }) => {
     if (!roomId) return;
     
-    // Broadcast the message structure securely to everyone inside the targeted room
     io.to(roomId).emit("incoming-message", {
       id: socket.id,
       text: msg,
@@ -126,7 +130,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// DEBUG
+// DEBUG LOGGING
 setInterval(() => {
   console.log("ROOMS:", JSON.stringify(rooms, null, 2));
 }, 5000);
@@ -159,6 +163,8 @@ app.get("/search", async (req, res) => {
   }
 });
 
-server.listen(5000, () => {
-  console.log("Server Running on Port 5000");
+// DYNAMIC PRODUCTION PORT BINDING: Required for Render web service stability
+const PORT = process.env.PORT || 5000;
+server.listen(PORT, () => {
+  console.log(`Server Running on Port ${PORT}`);
 });
