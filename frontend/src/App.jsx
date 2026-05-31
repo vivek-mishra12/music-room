@@ -99,7 +99,7 @@ function App() {
     if (!searchQuery.trim()) return;
 
     try {
-      const res = await axios.get("http://localhost:5000/search", {
+      const res = await axios.get("https://music-room-1-ocnj.onrender.com/search", {
         params: { q: searchQuery },
       });
       setResults(res.data);

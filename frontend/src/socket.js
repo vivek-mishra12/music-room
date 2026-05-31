@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 
 const socket = io(
-  "http://localhost:5000"
+  "https://music-room-1-ocnj.onrender.com"
 );
 
 export default socket;
