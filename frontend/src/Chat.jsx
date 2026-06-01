@@ -7,14 +7,30 @@ function Chat({ roomId, showNotification }) {
   const chatEndRef = useRef(null);
 
   useEffect(() => {
-    socket.on("incoming-message", (msgPayload) => {
-      setMessages((prev) => [...prev, msgPayload]);
-    });
+    // Synchronized with server.js event name: "chat-message"
+    const handleIncomingMessage = (msgPayload) => {
+      // Structure incoming data with fallbacks to preserve your UI properties
+      const formattedMsg = {
+        id: msgPayload.id || Math.random().toString(36).substring(2, 9),
+        sender: msgPayload.sender || "Anonymous",
+        text: msgPayload.text,
+        timestamp: msgPayload.timestamp || new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+      
+      setMessages((prev) => [...prev, formattedMsg]);
+    };
+
+    socket.on("chat-message", handleIncomingMessage);
 
     return () => {
-      socket.off("incoming-message");
+      socket.off("chat-message", handleIncomingMessage);
     };
   }, []);
+
+  // Wipes chat window clear if you switch to a clean Room Channel ID state
+  useEffect(() => {
+    setMessages([]);
+  }, [roomId]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -29,9 +45,10 @@ function Chat({ roomId, showNotification }) {
       return;
     }
 
+    // Fixed payload key from 'msg' to 'message' to match backend server structure
     socket.emit("chat-message", {
-      roomId,
-      msg: message.trim(),
+      roomId: roomId.trim(),
+      message: message.trim(),
     });
 
     setMessage("");
@@ -57,11 +74,11 @@ function Chat({ roomId, showNotification }) {
               key={index} 
               className="bg-[#05070d]/60 border border-slate-900/60 px-3 py-2 rounded-xl text-xs text-slate-300 break-words animate-fadeIn"
             >
-              <div className="flex justify-between items-center opacity-40 text-[9px] font-mono mb-1">
-                <span>ID: {msg.id.substring(0, 5)}...</span>
-                <span>{msg.timestamp}</span>
+              <div className="flex justify-between items-center opacity-50 text-[9px] font-mono mb-1 border-b border-slate-800/50 pb-0.5">
+                <span className="text-emerald-400 font-bold">User: {msg.sender}</span>
+                <span className="text-slate-500">{msg.timestamp}</span>
               </div>
-              <p className="leading-relaxed text-slate-200">{msg.text}</p>
+              <p className="leading-relaxed text-slate-200 mt-1">{msg.text}</p>
             </div>
           ))
         )}
