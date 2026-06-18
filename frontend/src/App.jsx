@@ -169,7 +169,7 @@ function App() {
     if (!searchQuery.trim()) return;
 
     try {
-      const res = await axios.get("https://music-room-1-ocnj.onrender.com/search", {
+      const res = await axios.get("https://music-room-1-ocnj.onrender.com/api/youtube/search", {
         params: { q: searchQuery },
       });
       setResults(res.data);
