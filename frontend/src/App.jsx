@@ -397,12 +397,21 @@ function App() {
                         containerClassName="w-full h-full"
                         opts={{ playerVars: { controls: 1, autoplay: 1 } }}
                         onReady={(event) => {
-                          playerRef.current = event.target;
-                          if (roomState && roomState.currentTime > 0) {
-                            playerRef.current.seekTo(roomState.currentTime, true);
-                            if (roomState.isPlaying) playerRef.current.playVideo();
-                          }
-                        }}
+  playerRef.current = event.target;
+
+  if (!roomState) return;
+
+  if (roomState.currentTime > 0) {
+    playerRef.current.seekTo(roomState.currentTime, true);
+  }
+
+  if (roomState.playState === "playing") {
+    playerRef.current.playVideo();
+    setIsPlaying(true);
+  } else {
+    setIsPlaying(false);
+  }
+  }}
                         onPlay={() => setIsPlaying(true)}
                         onPause={() => setIsPlaying(false)}
                       />
