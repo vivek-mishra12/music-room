@@ -5,7 +5,7 @@ import socket from "./socket";
 import Chat from "./Chat";
 
 // Dynamic API Base URL definition to reach your deployed backend
-const API_BASE_URL = "http://localhost:5000";
+const API_BASE_URL = "https://music-room-1-ocnj.onrender.com";
 
 function App() {
   // Authentication & User Session Layer
