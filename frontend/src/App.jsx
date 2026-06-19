@@ -315,30 +315,30 @@ function App() {
       ) : (
         <>
           {/* Global Navigation Header View */}
-          <header className="border-b border-slate-800 bg-[#0f1524]/80 px-6 py-4 flex items-center justify-between shadow-md shrink-0">
+          <header className="border-b border-slate-800 bg-[#0f1524]/80 px-4 md:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 shadow-md shrink-0">
             <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent flex items-center gap-2">
               <span>🎵</span> MusicRoom Sync
             </h1>
             
-            <div className="flex items-center gap-4">
-              <div className="flex gap-2">
+            <div className="flex flex-col sm:flex-row w-full sm:w-auto items-center gap-3 sm:gap-4">
+              <div className="flex w-full sm:w-auto gap-2">
                 <input
                   placeholder="Enter Room ID Key..."
                   value={roomId}
                   onChange={(e) => setRoomId(e.target.value)}
-                  className="bg-[#05070d] border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono"
+                  className="flex-1 sm:flex-none bg-[#05070d] border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono"
                 />
                 <button 
                   onClick={joinRoom} 
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-1.5 rounded-lg text-xs transition-all uppercase tracking-wide shadow-md active:scale-95"
+                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-1.5 rounded-lg text-xs transition-all uppercase tracking-wide shadow-md active:scale-95 whitespace-nowrap"
                 >
                   Join Room
                 </button>
               </div>
 
-              <div className="h-6 w-[1px] bg-slate-800"></div>
+              <div className="hidden sm:block h-6 w-[1px] bg-slate-800"></div>
 
-              <div className="flex items-center gap-3">
+              <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-3">
                 <span className="text-xs text-slate-400">User: <strong className="text-slate-200 font-semibold">{username}</strong></span>
                 <button
                   onClick={handleLogout}
@@ -354,7 +354,7 @@ function App() {
           <main className="flex-1 max-w-[1500px] w-full mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-stretch">
             
             {/* PANEL LEFT: SEARCH CRADLE */}
-            <div className="lg:col-span-3 flex flex-col gap-6">
+            <div className="md:col-span-1 lg:col-span-3 flex flex-col gap-6">
               <div className="bg-[#121a2e]/40 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col h-full">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
                   <span className="w-1 h-2 bg-emerald-400 rounded-full"></span>
@@ -374,7 +374,7 @@ function App() {
                 </div>
 
                 {results.length > 0 && (
-                  <div className="max-h-[380px] overflow-y-auto bg-[#05070d]/60 rounded-xl border border-slate-800 p-2 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
+                  <div className="max-h-[300px] md:max-h-[380px] overflow-y-auto bg-[#05070d]/60 rounded-xl border border-slate-800 p-2 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
                     {results.map((video) => (
                       <div key={video.id.videoId} className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-900/40 transition-colors group">
                         <img src={video.snippet.thumbnails.default.url} className="w-10 h-8 object-cover rounded shadow shrink-0" alt="thumb" />
@@ -395,16 +395,22 @@ function App() {
             </div>
 
             {/* PANEL CENTER: PLAYER MATRIX WINDOW */}
-            <div className="lg:col-span-6 flex flex-col gap-6">
-              <div className="bg-[#121a2e]/30 border border-slate-800/60 rounded-3xl p-5 shadow-2xl flex flex-col justify-between items-center flex-1 min-h-[380px]">
+            <div className="md:col-span-1 lg:col-span-6 flex flex-col gap-6">
+              <div className="bg-[#121a2e]/30 border border-slate-800/60 rounded-3xl p-4 md:p-5 shadow-2xl flex flex-col justify-between items-center flex-1 min-h-[320px] md:min-h-[380px]">
                 <div className="w-full aspect-video rounded-xl overflow-hidden shadow-2xl border border-slate-900 bg-black flex items-center justify-center relative">
                   {videoId ? (
-                    <div className="w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:rounded-xl">
+                    /* Injected absolute constraints with layout class expansion to prevent iframe overflow */
+                    <div className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:rounded-xl">
                       <YouTube
                         videoId={videoId}
                         className="w-full h-full"
                         containerClassName="w-full h-full"
-                        opts={{ playerVars: { controls: 1, autoplay: 1 } }}
+                        /* Updated dimension parameters to scale flawlessly with the window viewport bounds */
+                        opts={{ 
+                          width: "100%",
+                          height: "100%",
+                          playerVars: { controls: 1, autoplay: 1 } 
+                        }}
                         onReady={(event) => {
                           playerRef.current = event.target;
 
@@ -446,8 +452,8 @@ function App() {
             </div>
 
             {/* PANEL RIGHT: QUEUE TRACKER AND CHAT FEED COMPONENT LINK */}
-            <div className="lg:col-span-3 flex flex-col gap-5 justify-between">
-              <div className="bg-[#121a2e]/20 border border-slate-800 rounded-2xl p-3 shadow-xl h-[160px] overflow-y-auto flex flex-col scrollbar-thin scrollbar-thumb-slate-900">
+            <div className="md:col-span-2 lg:col-span-3 flex flex-col gap-5 justify-between">
+              <div className="bg-[#121a2e]/20 border border-slate-800 rounded-2xl p-3 shadow-xl lg:h-[220px] min-h-[160px] overflow-y-auto flex flex-col scrollbar-thin scrollbar-thumb-slate-900">
                 <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">🎶 Playlist Queue ({queue.length})</h3>
                 <div className="space-y-1.5 flex-1">
                   {queue.length === 0 ? (
@@ -466,7 +472,7 @@ function App() {
                 </div>
               </div>
 
-              <div className="flex-1">
+              <div className="flex-1 min-h-[300px] md:min-h-0">
                 <Chat roomId={roomId.trim()} showNotification={showNotification} />
               </div>
             </div>
