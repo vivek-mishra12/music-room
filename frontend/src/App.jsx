@@ -4,6 +4,9 @@ import axios from "axios";
 import socket from "./socket";
 import Chat from "./Chat";
 
+// Dynamic API Base URL definition to reach your deployed backend
+const API_BASE_URL = "http://localhost:5000";
+
 function App() {
   // Authentication & User Session Layer
   const [token, setToken] = useState(localStorage.getItem("token") || "");
@@ -106,7 +109,7 @@ function App() {
     if (!authEmail.trim() || !authPassword.trim()) return;
 
     try {
-      const res = await axios.post("https://music-room-1-ocnj.onrender.com/api/auth/login", {
+      const res = await axios.post(`${API_BASE_URL}/api/auth/login`, {
         email: authEmail,
         password: authPassword,
       });
@@ -127,7 +130,7 @@ function App() {
     if (!authUsername.trim() || !authEmail.trim() || !authPassword.trim()) return;
 
     try {
-      await axios.post("https://music-room-1-ocnj.onrender.com/api/auth/signup", {
+      await axios.post(`${API_BASE_URL}/api/auth/signup`, {
         username: authUsername,
         email: authEmail,
         password: authPassword,
@@ -161,7 +164,12 @@ function App() {
       return;
     }
 
-    socket.emit("join-room", cleanRoomId);
+    // Explicitly clean state variables before loading data context for a fresh room channel
+    setVideoId("");
+    setQueue([]);
+    setRoomState(null);
+
+    socket.emit("join-room", { roomId: cleanRoomId });
     showNotification(`✨ Connected Successfully! Joined Room Channel: "${cleanRoomId}"`, "success");
   };
 
@@ -169,7 +177,7 @@ function App() {
     if (!searchQuery.trim()) return;
 
     try {
-      const res = await axios.get("https://music-room-1-ocnj.onrender.com/api/youtube/search", {
+      const res = await axios.get(`${API_BASE_URL}/api/youtube/search`, {
         params: { q: searchQuery },
       });
       setResults(res.data);
@@ -210,12 +218,12 @@ function App() {
 
   const handleBroadcastPlay = () => {
     if (!roomId.trim()) return;
-    socket.emit("play", roomId.trim());
+    socket.emit("play", { roomId: roomId.trim() });
   };
   
   const handleBroadcastPause = () => {
     if (!roomId.trim()) return;
-    socket.emit("pause", roomId.trim());
+    socket.emit("pause", { roomId: roomId.trim() });
   };
 
   return (
@@ -295,6 +303,7 @@ function App() {
 
             <div className="mt-5 text-center">
               <button
+                type="button"
                 onClick={() => setIsRegistering(!isRegistering)}
                 className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors underline bg-transparent border-none outline-none cursor-pointer"
               >
@@ -397,21 +406,21 @@ function App() {
                         containerClassName="w-full h-full"
                         opts={{ playerVars: { controls: 1, autoplay: 1 } }}
                         onReady={(event) => {
-  playerRef.current = event.target;
+                          playerRef.current = event.target;
 
-  if (!roomState) return;
+                          if (!roomState) return;
 
-  if (roomState.currentTime > 0) {
-    playerRef.current.seekTo(roomState.currentTime, true);
-  }
+                          if (roomState.currentTime > 0) {
+                            playerRef.current.seekTo(roomState.currentTime, true);
+                          }
 
-  if (roomState.playState === "playing") {
-    playerRef.current.playVideo();
-    setIsPlaying(true);
-  } else {
-    setIsPlaying(false);
-  }
-  }}
+                          if (roomState.playState === "playing") {
+                            playerRef.current.playVideo();
+                            setIsPlaying(true);
+                          } else {
+                            setIsPlaying(false);
+                          }
+                        }}
                         onPlay={() => setIsPlaying(true)}
                         onPause={() => setIsPlaying(false)}
                       />

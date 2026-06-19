@@ -23,7 +23,7 @@ app.use(express.urlencoded({ extended: true }));
 
 // Dynamic Cross-Origin Resource Sharing Rules Configuration
 app.use(cors({
-  origin: ["https://music-room-umber.vercel.app"], 
+  origin: ["http://localhost:5173"], 
   credentials: true
 }));
 
@@ -41,7 +41,7 @@ const server = http.createServer(app);
 // Initialize Socket.io instance on top of shared HTTP channel server hooks
 const io = new Server(server, {
   cors: {
-    origin: ["https://music-room-umber.vercel.app"],
+    origin: ["http://localhost:5173"],
     methods: ["GET", "POST"]
   }
 });

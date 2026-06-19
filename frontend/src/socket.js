@@ -1,7 +1,7 @@
 import { io } from "socket.io-client";
 
 // Secure Render Deployment Base Target URL
-const SOCKET_URL = "https://music-room-1-ocnj.onrender.com";
+const SOCKET_URL = "http://localhost:5000";
 
 const socket = io(SOCKET_URL, {
   autoConnect: true,
