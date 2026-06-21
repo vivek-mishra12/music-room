@@ -3,6 +3,7 @@ import YouTube from "react-youtube";
 import axios from "axios";
 import socket from "./socket";
 import Chat from "./Chat";
+import GeminiDJ from "./components/GeminiDJ";
 
 // Dynamic API Base URL definition to reach your deployed backend
 const API_BASE_URL = "https://music-room-1-ocnj.onrender.com";
@@ -353,9 +354,11 @@ function App() {
           {/* Main Grid Interactive Canvas Layout */}
           <main className="flex-1 max-w-[1500px] w-full mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-stretch">
             
-            {/* PANEL LEFT: SEARCH CRADLE */}
+            {/* PANEL LEFT: SEARCH CRADLE AND GEMINI DJ BOX */}
             <div className="md:col-span-1 lg:col-span-3 flex flex-col gap-6">
-              <div className="bg-[#121a2e]/40 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col h-full">
+              
+              {/* YouTube Search Panel */}
+              <div className="bg-[#121a2e]/40 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col flex-1">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
                   <span className="w-1 h-2 bg-emerald-400 rounded-full"></span>
                   Search Shared Songs
@@ -374,7 +377,7 @@ function App() {
                 </div>
 
                 {results.length > 0 && (
-                  <div className="max-h-[300px] md:max-h-[380px] overflow-y-auto bg-[#05070d]/60 rounded-xl border border-slate-800 p-2 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
+                  <div className="max-h-[220px] overflow-y-auto bg-[#05070d]/60 rounded-xl border border-slate-800 p-2 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
                     {results.map((video) => (
                       <div key={video.id.videoId} className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-900/40 transition-colors group">
                         <img src={video.snippet.thumbnails.default.url} className="w-10 h-8 object-cover rounded shadow shrink-0" alt="thumb" />
@@ -392,6 +395,10 @@ function App() {
                   </div>
                 )}
               </div>
+
+              {/* Gemini AI DJ Interface Injection */}
+              <GeminiDJ />
+
             </div>
 
             {/* PANEL CENTER: PLAYER MATRIX WINDOW */}
@@ -399,13 +406,11 @@ function App() {
               <div className="bg-[#121a2e]/30 border border-slate-800/60 rounded-3xl p-4 md:p-5 shadow-2xl flex flex-col justify-between items-center flex-1 min-h-[320px] md:min-h-[380px]">
                 <div className="w-full aspect-video rounded-xl overflow-hidden shadow-2xl border border-slate-900 bg-black flex items-center justify-center relative">
                   {videoId ? (
-                    /* Injected absolute constraints with layout class expansion to prevent iframe overflow */
                     <div className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:rounded-xl">
                       <YouTube
                         videoId={videoId}
                         className="w-full h-full"
                         containerClassName="w-full h-full"
-                        /* Updated dimension parameters to scale flawlessly with the window viewport bounds */
                         opts={{ 
                           width: "100%",
                           height: "100%",
@@ -424,6 +429,7 @@ function App() {
                             playerRef.current.playVideo();
                             setIsPlaying(true);
                           } else {
+                            playerRef.current.pauseVideo();
                             setIsPlaying(false);
                           }
                         }}

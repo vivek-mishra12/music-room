@@ -1,3 +1,4 @@
+require("dotenv").config();
 const express = require("express");
 const http = require("http");
 const cors = require("cors");
@@ -10,8 +11,8 @@ const User = require("./models/User");
 const youtubeRoutes = require("./routes/youtubeRoutes");
 const roomSocket = require("./sockets/roomSocket");
 const authRoutes = require("./routes/authRoutes");
+const geminiRoutes = require("./routes/geminiRoutes"); // 1. Import routes
 
-require("dotenv").config();
 
 connectDB();
 
@@ -34,6 +35,8 @@ app.use("/api/auth", authRoutes);
 
 // --- YOUTUBE API PROXY SEARCH ROUTE ---
 app.use("/api/youtube", youtubeRoutes);
+
+app.use("/api/gemini", geminiRoutes); // 2. Bind middleware
 
 // Create Node HTTP instance wrapping our Express routing stack
 const server = http.createServer(app);
