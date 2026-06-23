@@ -12,7 +12,7 @@ const recommendSongs = async (req, res) => {
 
         // We use 'gemini-2.5-flash' for optimized speed and low-cost text generation
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
+            model: 'gemini-3.5-flash',
             contents: `You are an expert AI DJ inside a virtual synchronized music room. 
                        The user wants music recommendations for the following mood/theme: "${userPrompt}". 
                        Provide a short, friendly response and list exactly 5 specific song titles with their artists.`,
