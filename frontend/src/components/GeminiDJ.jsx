@@ -14,7 +14,7 @@ function GeminiDJ({ onSelectTrack }) {
     setRecommendation("");
     try {
       // Points to your newly mounted backend route
-      const response = await axios.post("http://localhost:5000/api/gemini/recommend", {
+      const response = await axios.post("https://music-room-1-ocnj.onrender.com/api/gemini/recommend", {
         prompt: prompt,
       });
 
