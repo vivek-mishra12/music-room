@@ -4,6 +4,7 @@ import axios from "axios";
 import socket from "./socket";
 import Chat from "./Chat";
 import GeminiDJ from "./components/GeminiDJ";
+import "./index.css";
 
 // Dynamic API Base URL definition to reach your deployed backend
 const API_BASE_URL = "https://music-room-1-ocnj.onrender.com";
@@ -228,8 +229,12 @@ function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-400 relative">
-      
+  /* Outermost structural layer carrying the blurred image pseudo-element rules */
+  <div className="app-bg-container min-h-screen text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-400 relative">
+    
+    {/* Ensure explicit content alignment layers stand out over the backdrop layer */}
+    <div className="relative z-10 w-full min-h-screen flex flex-col">
+
       {/* GLOWING POP-UP TOAST NOTIFICATION CONTAINER HUB */}
       {toast.visible && (
         <div className="fixed top-6 right-6 z-[100] animate-fadeIn">
@@ -247,7 +252,8 @@ function App() {
       {/* RENDER VIEW CONTEXT SPLITTER */}
       {!token ? (
         <div className="flex-1 flex items-center justify-center p-4">
-          <div className="w-full max-w-md bg-[#0f1524]/60 border border-slate-800/80 p-8 rounded-3xl shadow-2xl backdrop-blur-md">
+          {/* Changed card from bg-[#0f1524]/60 to semi-transparent glass backdrop */}
+          <div className="w-full max-w-md bg-slate-900/40 border border-slate-700/30 p-8 rounded-3xl shadow-2xl backdrop-blur-xl">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-extrabold bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent mb-1">
                 {isRegistering ? "Create Account" : "Welcome Back"}
@@ -267,7 +273,7 @@ function App() {
                     value={authUsername}
                     onChange={(e) => setAuthUsername(e.target.value)}
                     required
-                    className="w-full bg-[#05070d] border border-slate-700/60 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="w-full bg-slate-950/70 border border-slate-700/40 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                 </div>
               )}
@@ -279,7 +285,7 @@ function App() {
                   value={authEmail}
                   onChange={(e) => setAuthEmail(e.target.value)}
                   required
-                  className="w-full bg-[#05070d] border border-slate-700/60 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full bg-slate-950/70 border border-slate-700/40 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
               <div>
@@ -290,7 +296,7 @@ function App() {
                   value={authPassword}
                   onChange={(e) => setAuthPassword(e.target.value)}
                   required
-                  className="w-full bg-[#05070d] border border-slate-700/60 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                  className="w-full bg-slate-950/70 border border-slate-700/40 rounded-xl px-3 py-2.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                 />
               </div>
 
@@ -315,8 +321,8 @@ function App() {
         </div>
       ) : (
         <>
-          {/* Global Navigation Header View */}
-          <header className="border-b border-slate-800 bg-[#0f1524]/80 px-4 md:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 shadow-md shrink-0">
+          {/* Global Navigation Header View - converted to matching frosted overlay */}
+          <header className="border-b border-slate-800/60 bg-slate-900/60 backdrop-blur-md px-4 md:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 shadow-md shrink-0">
             <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent flex items-center gap-2">
               <span>🎵</span> MusicRoom Sync
             </h1>
@@ -327,7 +333,7 @@ function App() {
                   placeholder="Enter Room ID Key..."
                   value={roomId}
                   onChange={(e) => setRoomId(e.target.value)}
-                  className="flex-1 sm:flex-none bg-[#05070d] border border-slate-700 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono"
+                  className="flex-1 sm:flex-none bg-slate-950/70 border border-slate-700/50 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono"
                 />
                 <button 
                   onClick={joinRoom} 
@@ -343,7 +349,7 @@ function App() {
                 <span className="text-xs text-slate-400">User: <strong className="text-slate-200 font-semibold">{username}</strong></span>
                 <button
                   onClick={handleLogout}
-                  className="bg-slate-800 hover:bg-red-950/40 border border-slate-700 hover:border-red-900/60 text-slate-300 hover:text-red-400 px-3 py-1.5 rounded-lg text-xs transition-all tracking-wide active:scale-95"
+                  className="bg-slate-800/80 hover:bg-red-950/40 border border-slate-700 hover:border-red-900/60 text-slate-300 hover:text-red-400 px-3 py-1.5 rounded-lg text-xs transition-all tracking-wide active:scale-95"
                 >
                   Log Out
                 </button>
@@ -357,8 +363,8 @@ function App() {
             {/* PANEL LEFT: SEARCH CRADLE AND GEMINI DJ BOX */}
             <div className="md:col-span-1 lg:col-span-3 flex flex-col gap-6">
               
-              {/* YouTube Search Panel */}
-              <div className="bg-[#121a2e]/40 border border-slate-800 rounded-2xl p-4 shadow-xl flex flex-col flex-1">
+              {/* YouTube Search Panel - optimized translucent card */}
+              <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/60 rounded-2xl p-4 shadow-xl flex flex-col flex-1">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
                   <span className="w-1 h-2 bg-emerald-400 rounded-full"></span>
                   Search Shared Songs
@@ -369,7 +375,7 @@ function App() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && searchSongs()}
-                    className="flex-1 bg-[#05070d] border border-slate-800 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                   <button onClick={searchSongs} className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-3 py-2 rounded-xl text-xs uppercase shrink-0">
                     Find
@@ -377,7 +383,7 @@ function App() {
                 </div>
 
                 {results.length > 0 && (
-                  <div className="max-h-[220px] overflow-y-auto bg-[#05070d]/60 rounded-xl border border-slate-800 p-2 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
+                  <div className="max-h-[220px] overflow-y-auto bg-slate-950/50 rounded-xl border border-slate-800/80 p-2 space-y-1.5 scrollbar-thin scrollbar-thumb-slate-800">
                     {results.map((video) => (
                       <div key={video.id.videoId} className="flex items-center gap-2.5 p-1.5 rounded-lg hover:bg-slate-900/40 transition-colors group">
                         <img src={video.snippet.thumbnails.default.url} className="w-10 h-8 object-cover rounded shadow shrink-0" alt="thumb" />
@@ -403,7 +409,8 @@ function App() {
 
             {/* PANEL CENTER: PLAYER MATRIX WINDOW */}
             <div className="md:col-span-1 lg:col-span-6 flex flex-col gap-6">
-              <div className="bg-[#121a2e]/30 border border-slate-800/60 rounded-3xl p-4 md:p-5 shadow-2xl flex flex-col justify-between items-center flex-1 min-h-[320px] md:min-h-[380px]">
+              {/* Main Video Deck Wrapper - calibrated for beautiful transparency bleed */}
+              <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800/50 rounded-3xl p-4 md:p-5 shadow-2xl flex flex-col justify-between items-center flex-1 min-h-[320px] md:min-h-[380px]">
                 <div className="w-full aspect-video rounded-xl overflow-hidden shadow-2xl border border-slate-900 bg-black flex items-center justify-center relative">
                   {videoId ? (
                     <div className="absolute inset-0 w-full h-full [&>iframe]:w-full [&>iframe]:h-full [&>iframe]:rounded-xl">
@@ -445,7 +452,7 @@ function App() {
                 </div>
 
                 {videoId && (
-                  <div className="flex items-center gap-3 bg-slate-950/40 border border-slate-800 p-2.5 rounded-xl mt-4 shadow-inner">
+                  <div className="flex items-center gap-3 bg-slate-950/60 border border-slate-800/80 p-2.5 rounded-xl mt-4 shadow-inner">
                     <button onClick={handleBroadcastPause} className="bg-slate-900 border border-slate-800 hover:border-slate-700 px-3 py-1.5 rounded-lg text-[11px] font-bold tracking-wide text-slate-300 transition-colors">
                       ⏸ Pause Sync
                     </button>
@@ -459,14 +466,15 @@ function App() {
 
             {/* PANEL RIGHT: QUEUE TRACKER AND CHAT FEED COMPONENT LINK */}
             <div className="md:col-span-2 lg:col-span-3 flex flex-col gap-5 justify-between">
-              <div className="bg-[#121a2e]/20 border border-slate-800 rounded-2xl p-3 shadow-xl lg:h-[220px] min-h-[160px] overflow-y-auto flex flex-col scrollbar-thin scrollbar-thumb-slate-900">
+              {/* playlist queue container - converted to transparent grid */}
+              <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/60 rounded-2xl p-3 shadow-xl lg:h-[220px] min-h-[160px] overflow-y-auto flex flex-col scrollbar-thin scrollbar-thumb-slate-900">
                 <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">🎶 Playlist Queue ({queue.length})</h3>
                 <div className="space-y-1.5 flex-1">
                   {queue.length === 0 ? (
                     <p className="text-[10px] text-slate-600 italic text-center py-4">Queue is empty</p>
                   ) : (
                     queue.map((song, index) => (
-                      <div key={index} className="flex items-center justify-between gap-2 p-1 rounded bg-slate-950/30 border border-slate-900/40">
+                      <div key={index} className="flex items-center justify-between gap-2 p-1 rounded bg-slate-950/50 border border-slate-900/60">
                         <span className="text-[11px] text-slate-300 truncate font-medium flex-1 px-1">{song.title}</span>
                         <div className="flex gap-1.5 shrink-0">
                           <button onClick={() => playSong(song)} className="text-emerald-400 font-bold hover:text-emerald-300 text-[10px] uppercase">Play</button>
@@ -487,7 +495,8 @@ function App() {
         </>
       )}
     </div>
-  );
+  </div>
+);
 }
 
 export default App;

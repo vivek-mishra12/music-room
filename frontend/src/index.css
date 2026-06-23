@@ -4,6 +4,40 @@
   .bg-radial-gradient {
     background-image: radial-gradient(circle at 50% 0%, #16223f 0%, #090d16 70%);
   }
+  
+  /* Container utility class to wrap your outermost layout template element */
+  .app-bg-container {
+    position: relative;
+    min-height: 100vh;
+    width: 100%;
+    overflow-x: hidden;
+    z-index: 0;
+  }
+
+  /* Blurred background pseudo-layer that stays locked behind your interactive modules */
+  .app-bg-container::before {
+    content: "";
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-image: url("https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcTFYdge1XA6sDiFo7B7CAC_of2myfcQ3ehx3D2U8d6tqA&s=10");
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    
+    /* Applies a rich cinematic blur */
+    filter: blur(20px); 
+    /* Slightly enlarges the layer to avoid clean white halo borders on your screen edges */
+    transform: scale(1.1); 
+    
+    /* Pushes graphic behind text layers */
+    z-index: -1; 
+    
+    /* Blends a dark overlay on top so white text elements maintain excellent visibility */
+    opacity: 0.65; 
+  }
 }
 
 @keyframes fadeIn {
