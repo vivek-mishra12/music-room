@@ -25,7 +25,7 @@ function App() {
   const dispatch = useDispatch();
 
   // Extract shared context from global Redux store
-  const { token, username, roomInput, activeRoomId, videoId, roomState, joinedUsersCount, queue } = 
+  const { token, username, roomInput, activeRoomId, videoId, roomState, joinedUsersCount, queue, isPlaying } = 
     useSelector((state) => state.room);
 
   // Local state for localized forms and alerts
@@ -76,12 +76,24 @@ function App() {
       dispatch(setJoinedUsersCount(data.count));
     };
 
+    // Live state listener to dynamically adjust drifting timestamps across network latency
+    const handleTimeSync = (data) => {
+      if (playerRef.current && typeof playerRef.current.getCurrentTime === "function") {
+        const localTime = playerRef.current.getCurrentTime();
+        // Force seek alignment only if the drift exceeds a 2.5-second buffer window
+        if (Math.abs(localTime - data.currentTime) > 2.5) {
+          playerRef.current.seekTo(data.currentTime, true);
+        }
+      }
+    };
+
     socket.on("video-changed", handleVideoChanged);
     socket.on("room-state", handleRoomState);
     socket.on("queue-updated", handleQueueUpdated);
     socket.on("play", handlePlay);
     socket.on("pause", handlePause);
     socket.on("user-count-changed", handleUserCountChanged);
+    socket.on("room-time-sync", handleTimeSync);
 
     return () => {
       socket.off("video-changed", handleVideoChanged);
@@ -90,6 +102,7 @@ function App() {
       socket.off("play", handlePlay);
       socket.off("pause", handlePause);
       socket.off("user-count-changed", handleUserCountChanged);
+      socket.off("room-time-sync", handleTimeSync);
     };
   }, [token, dispatch]);
 
@@ -100,6 +113,7 @@ function App() {
         playerRef.current &&
         activeRoomId &&
         token &&
+        isPlaying && // FIXED: Only emit updates to the cluster database if music is actually playing
         typeof playerRef.current.getCurrentTime === "function"
       ) {
         socket.emit("time-update", {
@@ -110,7 +124,7 @@ function App() {
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [activeRoomId, token]);
+  }, [activeRoomId, token, isPlaying]);
 
   // --- Authentication Request Handlers ---
   const handleLogin = async (e) => {
@@ -225,7 +239,7 @@ function App() {
   <div className="app-bg-container min-h-screen text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-400 relative">
     <div className="relative z-10 w-full min-h-screen flex flex-col">
 
-      {/* TOAST NOTIFICATION HANDLER (FIXED STRING INTERPOLATION SYNTAX) */}
+      {/* TOAST NOTIFICATION HANDLER */}
       {toast.visible && (
         <div className="fixed top-6 right-6 z-[100] animate-fadeIn">
           <div className={`backdrop-blur-xl border px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 max-w-sm transition-all duration-300 ${
@@ -308,7 +322,6 @@ function App() {
                 <span>🎵</span> MusicRoom Sync
               </h1>
 
-              {/* Counter reads directly from immutable activeRoomId context */}
               {activeRoomId && roomState && (
                 <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-fadeIn">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
@@ -396,21 +409,25 @@ function App() {
                         opts={{ 
                           width: "100%",
                           height: "100%",
-                          playerVars: { controls: 1, autoplay: 1 } 
+                          playerVars: { controls: 1, autoplay: 1, rel: 0 } 
                         }}
                         onReady={(event) => {
                           playerRef.current = event.target;
                           if (!roomState) return;
-                          if (roomState.currentTime > 0) {
-                            playerRef.current.seekTo(roomState.currentTime, true);
-                          }
-                          if (roomState.playState === "playing") {
-                            playerRef.current.playVideo();
-                            dispatch(setIsPlaying(true));
-                          } else {
-                            playerRef.current.pauseVideo();
-                            dispatch(setIsPlaying(false));
-                          }
+                          
+                          // FIXED: Enforce a timeout buffer loop to guarantee streaming elements load completely before seeking timestamps
+                          setTimeout(() => {
+                            if (roomState.currentTime > 0 && playerRef.current) {
+                              playerRef.current.seekTo(roomState.currentTime, true);
+                            }
+                            if (roomState.playState === "playing") {
+                              playerRef.current.playVideo();
+                              dispatch(setIsPlaying(true));
+                            } else {
+                              playerRef.current.pauseVideo();
+                              dispatch(setIsPlaying(false));
+                            }
+                          }, 300);
                         }}
                         onPlay={() => dispatch(setIsPlaying(true))}
                         onPause={() => dispatch(setIsPlaying(false))}
@@ -456,7 +473,6 @@ function App() {
                 </div>
               </div>
 
-              {/* Chat now strictly reads locked-in activeRoomId to avoid typing breaks */}
               <div className="flex-1 min-h-[300px] md:min-h-0">
                 <Chat roomId={activeRoomId} showNotification={showNotification} />
               </div>
