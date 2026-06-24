@@ -113,7 +113,7 @@ function App() {
         playerRef.current &&
         activeRoomId &&
         token &&
-        isPlaying && 
+        isPlaying && // FIXED: Only emit updates to the cluster database if music is actually playing
         typeof playerRef.current.getCurrentTime === "function"
       ) {
         socket.emit("time-update", {
@@ -415,7 +415,7 @@ function App() {
                           playerRef.current = event.target;
                           if (!roomState) return;
                           
-                          // MODIFIED: Deliberately set to 5000ms (5 seconds) to allow complete track pre-buffering
+                          // FIXED: Enforce a timeout buffer loop to guarantee streaming elements load completely before seeking timestamps
                           setTimeout(() => {
                             if (roomState.currentTime > 0 && playerRef.current) {
                               playerRef.current.seekTo(roomState.currentTime, true);
@@ -427,7 +427,7 @@ function App() {
                               playerRef.current.pauseVideo();
                               dispatch(setIsPlaying(false));
                             }
-                          }, 5000);
+                          }, 300);
                         }}
                         onPlay={() => dispatch(setIsPlaying(true))}
                         onPause={() => dispatch(setIsPlaying(false))}

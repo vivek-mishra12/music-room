@@ -118,7 +118,7 @@ const roomSocket = (io) => {
         state.currentTime = data.currentTime;
         await setRoomState(roomId, state);
       }
-      socket.to(roomId).emit("room-time-sync", { currentTime: data.currentTime });
+      
     });
 
     // Change Video / Play Track
