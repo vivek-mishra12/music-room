@@ -1,3 +1,4 @@
+// frontend/src/App.jsx
 import { useRef, useEffect, useState } from "react";
 import { useSelector, useDispatch } from "react-redux";
 import YouTube from "react-youtube";
@@ -9,7 +10,8 @@ import "./index.css";
 import {
   setAuth,
   clearAuth,
-  setRoomId,
+  setRoomInput,
+  setActiveRoomId,
   setVideoId,
   setIsPlaying,
   setJoinedUsersCount,
@@ -17,17 +19,16 @@ import {
   setRoomState,
 } from "./store/roomSlice";
 
-// Dynamic API Base URL definition to reach your deployed backend
 const API_BASE_URL = "https://music-room-1-ocnj.onrender.com";
 
 function App() {
   const dispatch = useDispatch();
 
-  // Extract shared state directly from centralized Redux Toolkit store layer
-  const { token, username, roomId, videoId, roomState, joinedUsersCount, queue, isPlaying } = 
+  // Extract shared context from global Redux store
+  const { token, username, roomInput, activeRoomId, videoId, roomState, joinedUsersCount, queue } = 
     useSelector((state) => state.room);
 
-  // Local state purely for localized transient form fields and alerts
+  // Local state for localized forms and alerts
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authUsername, setAuthUsername] = useState("");
@@ -38,7 +39,6 @@ function App() {
   
   const playerRef = useRef(null);
 
-  // Helper trigger to handle smooth auto-dismissing notification banners
   const showNotification = (message, type = "success") => {
     setToast({ visible: true, message, type });
     setTimeout(() => {
@@ -72,7 +72,6 @@ function App() {
       }
     };
 
-    // Participant count state synchronization receiver event
     const handleUserCountChanged = (data) => {
       dispatch(setJoinedUsersCount(data.count));
     };
@@ -99,19 +98,19 @@ function App() {
     const interval = setInterval(() => {
       if (
         playerRef.current &&
-        roomId.trim() &&
+        activeRoomId &&
         token &&
         typeof playerRef.current.getCurrentTime === "function"
       ) {
         socket.emit("time-update", {
-          roomId: roomId.trim(),
+          roomId: activeRoomId,
           currentTime: playerRef.current.getCurrentTime(),
         });
       }
     }, 2000);
 
     return () => clearInterval(interval);
-  }, [roomId, token]);
+  }, [activeRoomId, token]);
 
   // --- Authentication Request Handlers ---
   const handleLogin = async (e) => {
@@ -148,23 +147,24 @@ function App() {
     }
   };
 
-  // FIXED: Removed the self-calling recursion loop that caused maximum stack errors
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("username");
-    
     dispatch(clearAuth());
     showNotification("Disconnected gracefully from server nodes.", "error");
   };
 
   // --- Core Application Dashboard Handlers ---
   const joinRoom = () => {
-    const cleanRoomId = roomId.trim();
+    const cleanRoomId = roomInput.trim();
     if (!cleanRoomId) {
       showNotification("Please enter a valid Room ID key!", "error");
       return;
     }
 
+    // Lock in the active room ID globally
+    dispatch(setActiveRoomId(cleanRoomId));
+    
     socket.emit("join-room", { roomId: cleanRoomId });
     showNotification(`✨ Connected Successfully! Joined Room Channel: "${cleanRoomId}"`, "success");
   };
@@ -183,13 +183,13 @@ function App() {
   };
 
   const addSongToQueue = (video) => {
-    if (!roomId.trim()) {
+    if (!activeRoomId) {
       showNotification("You must establish or join a room first!", "error");
       return;
     }
 
     socket.emit("add-to-queue", {
-      roomId: roomId.trim(),
+      roomId: activeRoomId,
       song: {
         videoId: video.id.videoId,
         title: video.snippet.title,
@@ -200,35 +200,32 @@ function App() {
   };
 
   const removeSongFromQueue = (index) => {
-    if (!roomId.trim()) return;
-    socket.emit("remove-from-queue", { roomId: roomId.trim(), index });
+    if (!activeRoomId) return;
+    socket.emit("remove-from-queue", { roomId: activeRoomId, index });
     showNotification("Track dropped from playlist", "error");
   };
 
   const playSong = (song) => {
-    if (!roomId.trim()) return;
+    if (!activeRoomId) return;
     dispatch(setVideoId(song.videoId));
-    socket.emit("change-video", { roomId: roomId.trim(), videoId: song.videoId });
+    socket.emit("change-video", { roomId: activeRoomId, videoId: song.videoId });
   };
 
   const handleBroadcastPlay = () => {
-    if (!roomId.trim()) return;
-    socket.emit("play", { roomId: roomId.trim() });
+    if (!activeRoomId) return;
+    socket.emit("play", { roomId: activeRoomId });
   };
   
   const handleBroadcastPause = () => {
-    if (!roomId.trim()) return;
-    socket.emit("pause", { roomId: roomId.trim() });
+    if (!activeRoomId) return;
+    socket.emit("pause", { roomId: activeRoomId });
   };
 
   return (
-  /* Outermost structural layer carrying the blurred image pseudo-element rules */
   <div className="app-bg-container min-h-screen text-slate-100 flex flex-col font-sans selection:bg-emerald-500/30 selection:text-emerald-400 relative">
-    
-    {/* Ensure explicit content alignment layers stand out over the backdrop layer */}
     <div className="relative z-10 w-full min-h-screen flex flex-col">
 
-      {/* GLOWING POP-UP TOAST NOTIFICATION CONTAINER HUB */}
+      {/* TOAST NOTIFICATION HANDLER (FIXED STRING INTERPOLATION SYNTAX) */}
       {toast.visible && (
         <div className="fixed top-6 right-6 z-[100] animate-fadeIn">
           <div className={`backdrop-blur-xl border px-5 py-3.5 rounded-2xl shadow-2xl flex items-center gap-3 max-w-sm transition-all duration-300 ${
@@ -242,7 +239,6 @@ function App() {
         </div>
       )}
 
-      {/* RENDER VIEW CONTEXT SPLITTER */}
       {!token ? (
         <div className="flex-1 flex items-center justify-center p-4">
           <div className="w-full max-w-md bg-slate-900/40 border border-slate-700/30 p-8 rounded-3xl shadow-2xl backdrop-blur-xl">
@@ -292,20 +288,13 @@ function App() {
                 />
               </div>
 
-              <button
-                type="submit"
-                className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-opacity hover:opacity-95 shadow-lg pt-3"
-              >
+              <button type="submit" className="w-full bg-gradient-to-r from-emerald-500 to-teal-500 text-slate-950 font-bold py-2.5 rounded-xl text-xs uppercase tracking-wider transition-opacity hover:opacity-95 shadow-lg pt-3">
                 {isRegistering ? "Register Account" : "Sign In"}
               </button>
             </form>
 
             <div className="mt-5 text-center">
-              <button
-                type="button"
-                onClick={() => setIsRegistering(!isRegistering)}
-                className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors underline bg-transparent border-none outline-none cursor-pointer"
-              >
+              <button type="button" onClick={() => setIsRegistering(!isRegistering)} className="text-xs text-emerald-400 hover:text-emerald-300 transition-colors underline bg-transparent cursor-pointer">
                 {isRegistering ? "Already have an account? Sign In" : "Don't have an account? Register Here"}
               </button>
             </div>
@@ -313,15 +302,14 @@ function App() {
         </div>
       ) : (
         <>
-          {/* Global Navigation Header View - converted to matching frosted overlay */}
           <header className="border-b border-slate-800/60 bg-slate-900/60 backdrop-blur-md px-4 md:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 shadow-md shrink-0">
             <div className="flex items-center gap-4">
               <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent flex items-center gap-2">
                 <span>🎵</span> MusicRoom Sync
               </h1>
 
-              {/* Dynamic participant dashboard counter element badge */}
-              {roomState && (
+              {/* Counter reads directly from immutable activeRoomId context */}
+              {activeRoomId && roomState && (
                 <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-fadeIn">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                   <span>{joinedUsersCount} {joinedUsersCount === 1 ? "User Online" : "Users Online"}</span>
@@ -333,14 +321,11 @@ function App() {
               <div className="flex w-full sm:w-auto gap-2">
                 <input
                   placeholder="Enter Room ID Key..."
-                  value={roomId}
-                  onChange={(e) => dispatch(setRoomId(e.target.value))}
+                  value={roomInput}
+                  onChange={(e) => dispatch(setRoomInput(e.target.value))}
                   className="flex-1 sm:flex-none bg-slate-950/70 border border-slate-700/50 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono"
                 />
-                <button 
-                  onClick={joinRoom} 
-                  className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-1.5 rounded-lg text-xs transition-all uppercase tracking-wide shadow-md active:scale-95 whitespace-nowrap"
-                >
+                <button onClick={joinRoom} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold px-4 py-1.5 rounded-lg text-xs uppercase shadow-md active:scale-95 whitespace-nowrap">
                   Join Room
                 </button>
               </div>
@@ -349,23 +334,15 @@ function App() {
 
               <div className="flex w-full sm:w-auto items-center justify-between sm:justify-start gap-3">
                 <span className="text-xs text-slate-400">User: <strong className="text-slate-200 font-semibold">{username}</strong></span>
-                <button
-                  onClick={handleLogout}
-                  className="bg-slate-800/80 hover:bg-red-950/40 border border-slate-700 hover:border-red-900/60 text-slate-300 hover:text-red-400 px-3 py-1.5 rounded-lg text-xs transition-all tracking-wide active:scale-95"
-                >
+                <button onClick={handleLogout} className="bg-slate-800/80 hover:bg-red-950/40 border border-slate-700 hover:border-red-900/60 text-slate-300 hover:text-red-400 px-3 py-1.5 rounded-lg text-xs transition-all tracking-wide active:scale-95">
                   Log Out
                 </button>
               </div>
             </div>
           </header>
 
-          {/* Main Grid Interactive Canvas Layout */}
           <main className="flex-1 max-w-[1500px] w-full mx-auto p-4 md:p-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-12 gap-6 items-stretch">
-            
-            {/* PANEL LEFT: SEARCH CRADLE AND GEMINI DJ BOX */}
             <div className="md:col-span-1 lg:col-span-3 flex flex-col gap-6">
-              
-              {/* YouTube Search Panel - optimized translucent card */}
               <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/60 rounded-2xl p-4 shadow-xl flex flex-col flex-1">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
                   <span className="w-1 h-2 bg-emerald-400 rounded-full"></span>
@@ -377,7 +354,7 @@ function App() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && searchSongs()}
-                    className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="w-full bg-slate-950/70 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                   <button onClick={searchSongs} className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-3 py-2 rounded-xl text-xs uppercase shrink-0">
                     Find
@@ -404,14 +381,10 @@ function App() {
                 )}
               </div>
 
-              {/* Gemini AI DJ Interface Injection */}
               <GeminiDJ />
-
             </div>
 
-            {/* PANEL CENTER: PLAYER MATRIX WINDOW */}
             <div className="md:col-span-1 lg:col-span-6 flex flex-col gap-6">
-              {/* Main Video Deck Wrapper - calibrated for beautiful transparency bleed */}
               <div className="bg-slate-900/30 backdrop-blur-md border border-slate-800/50 rounded-3xl p-4 md:p-5 shadow-2xl flex flex-col justify-between items-center flex-1 min-h-[320px] md:min-h-[380px]">
                 <div className="w-full aspect-video rounded-xl overflow-hidden shadow-2xl border border-slate-900 bg-black flex items-center justify-center relative">
                   {videoId ? (
@@ -427,13 +400,10 @@ function App() {
                         }}
                         onReady={(event) => {
                           playerRef.current = event.target;
-
                           if (!roomState) return;
-
                           if (roomState.currentTime > 0) {
                             playerRef.current.seekTo(roomState.currentTime, true);
                           }
-
                           if (roomState.playState === "playing") {
                             playerRef.current.playVideo();
                             dispatch(setIsPlaying(true));
@@ -466,9 +436,7 @@ function App() {
               </div>
             </div>
 
-            {/* PANEL RIGHT: QUEUE TRACKER AND CHAT FEED COMPONENT LINK */}
             <div className="md:col-span-2 lg:col-span-3 flex flex-col gap-5 justify-between">
-              {/* playlist queue container - converted to transparent grid */}
               <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/60 rounded-2xl p-3 shadow-xl lg:h-[220px] min-h-[160px] overflow-y-auto flex flex-col scrollbar-thin scrollbar-thumb-slate-900">
                 <h3 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 block">🎶 Playlist Queue ({queue.length})</h3>
                 <div className="space-y-1.5 flex-1">
@@ -488,11 +456,11 @@ function App() {
                 </div>
               </div>
 
+              {/* Chat now strictly reads locked-in activeRoomId to avoid typing breaks */}
               <div className="flex-1 min-h-[300px] md:min-h-0">
-                <Chat roomId={roomId.trim()} showNotification={showNotification} />
+                <Chat roomId={activeRoomId} showNotification={showNotification} />
               </div>
             </div>
-
           </main>
         </>
       )}

@@ -1,12 +1,12 @@
+// frontend/src/store/roomSlice.js
 import { createSlice } from "@reduxjs/toolkit";
 
 const initialState = {
-  // Authentication Context
   token: localStorage.getItem("token") || "",
   username: localStorage.getItem("username") || "",
   
-  // Active Sync Room State
-  roomId: "",
+  roomInput: "",      // Tracks what the user types in the box
+  activeRoomId: "",   // Tracks the room the user is ACTUALLY joined in
   videoId: "",
   isPlaying: false,
   joinedUsersCount: 0,
@@ -25,19 +25,13 @@ const roomSlice = createSlice({
       localStorage.setItem("username", action.payload.username);
     },
     clearAuth: (state) => {
-      state.token = "";
-      state.username = "";
-      state.roomId = "";
-      state.videoId = "";
-      state.isPlaying = false;
-      state.joinedUsersCount = 0;
-      state.queue = [];
-      state.roomState = null;
-      localStorage.removeItem("token");
-      localStorage.removeItem("username");
+      return { ...initialState, token: "", username: "" };
     },
-    setRoomId: (state, action) => {
-      state.roomId = action.payload;
+    setRoomInput: (state, action) => {
+      state.roomInput = action.payload;
+    },
+    setActiveRoomId: (state, action) => {
+      state.activeRoomId = action.payload;
     },
     setVideoId: (state, action) => {
       state.videoId = action.payload;
@@ -62,7 +56,8 @@ const roomSlice = createSlice({
 export const {
   setAuth,
   clearAuth,
-  setRoomId,
+  setRoomInput,
+  setActiveRoomId,
   setVideoId,
   setIsPlaying,
   setJoinedUsersCount,

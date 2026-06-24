@@ -1,64 +1,82 @@
+// frontend/src/components/GeminiDJ.jsx
 import { useState } from "react";
+import { useSelector } from "react-redux"; // Pull context safely
 import axios from "axios";
+import socket from "../socket";
 
-function GeminiDJ({ onSelectTrack }) {
+// Match backend URL configuration block
+const API_BASE_URL = "https://music-room-1-ocnj.onrender.com";
+
+function GeminiDJ() {
+  // Read active room channel context directly from state layers
+  const { activeRoomId } = useSelector((state) => state.room);
+  
   const [prompt, setPrompt] = useState("");
-  const [recommendation, setRecommendation] = useState("");
   const [loading, setLoading] = useState(false);
+  const [aiResponse, setAiResponse] = useState("");
 
-  const handleGetRecommendations = async (e) => {
-    e.preventDefault();
+  const askGeminiDJ = async () => {
     if (!prompt.trim()) return;
+    if (!activeRoomId) {
+      setAiResponse("⚠️ Please join a room channel before invoking the AI DJ!");
+      return;
+    }
 
     setLoading(true);
-    setRecommendation("");
+    setAiResponse("");
+
     try {
-      // Points to your newly mounted backend route
-      const response = await axios.post("https://music-room-1-ocnj.onrender.com/api/gemini/recommend", {
-        prompt: prompt,
+      const res = await axios.post(`${API_BASE_URL}/api/gemini/suggest`, {
+        prompt: prompt.trim(),
+        roomId: activeRoomId,
       });
 
-      if (response.data.success) {
-        setRecommendation(response.data.recommendation);
+      if (res.data && res.data.suggestion) {
+        setAiResponse(`🤖 DJ: ${res.data.suggestion}`);
+        
+        // If the AI auto-selected a matching track ID, pipe it out over socket channels
+        if (res.data.videoId) {
+          socket.emit("change-video", { roomId: activeRoomId, videoId: res.data.videoId });
+        }
+      } else {
+        setAiResponse("AI DJ couldn't find a matching song recommendation.");
       }
-    } catch (error) {
-      console.error("Error getting AI suggestions:", error);
-      setRecommendation("Failed to wake up the AI DJ. Please check your connection.");
+    } catch (err) {
+      console.error(err);
+      setAiResponse("Failed to fetch recommendation from Gemini nodes.");
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="bg-slate-900 text-white p-4 rounded-xl border border-purple-500/30 shadow-lg my-4">
-      <div className="flex items-center gap-2 mb-3">
-        <span className="text-xl">✨</span>
-        <h3 className="text-lg font-bold bg-gradient-to-r from-purple-400 to-pink-500 bg-clip-text text-transparent">
-          Gemini AI Room DJ
-        </h3>
-      </div>
+    <div className="bg-slate-900/40 backdrop-blur-md border border-slate-800/60 rounded-2xl p-4 shadow-xl flex flex-col">
+      <h2 className="text-xs font-bold uppercase tracking-wider text-slate-400 mb-3 flex items-center gap-1.5">
+        <span className="w-1 h-2 bg-purple-500 rounded-full animate-pulse"></span>
+        Gemini Smart AI DJ
+      </h2>
 
-      <form onSubmit={handleGetRecommendations} className="flex gap-2 mb-4">
-        <input
-          type="text"
+      <div className="flex flex-col gap-2">
+        <textarea
+          rows="2"
+          placeholder="e.g., 'Play something smooth for a coding session' or 'Find upbeat techno'"
           value={prompt}
           onChange={(e) => setPrompt(e.target.value)}
-          placeholder="e.g., chill coding vibes, retro 80s rock..."
-          className="flex-1 px-3 py-2 rounded-lg bg-slate-800 border border-slate-700 focus:outline-none focus:border-purple-500 text-sm"
-          disabled={loading}
+          className="w-full bg-slate-950/70 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-purple-500 resize-none"
         />
+        
         <button
-          type="submit"
-          className="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded-lg text-sm font-semibold transition-all disabled:opacity-50"
-          disabled={loading}
+          onClick={askGeminiDJ}
+          disabled={loading || !activeRoomId}
+          className="w-full bg-gradient-to-r from-purple-500 to-indigo-500 text-white disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-500 font-bold py-2 rounded-xl text-xs uppercase tracking-wide transition-all active:scale-95 shrink-0"
         >
-          {loading ? "Thinking..." : "Ask DJ"}
+          {loading ? "Thinking..." : "Consult AI DJ"}
         </button>
-      </form>
+      </div>
 
-      {recommendation && (
-        <div className="bg-slate-950/60 border border-slate-800 p-3 rounded-lg text-sm max-h-60 overflow-y-auto whitespace-pre-wrap leading-relaxed custom-scrollbar">
-          {recommendation}
+      {aiResponse && (
+        <div className="mt-3 p-2.5 bg-slate-950/40 border border-slate-800/50 rounded-xl text-[11px] text-purple-200 leading-relaxed max-h-[100px] overflow-y-auto">
+          {aiResponse}
         </div>
       )}
     </div>
