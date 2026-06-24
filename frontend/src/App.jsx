@@ -22,6 +22,7 @@ function App() {
   const [roomId, setRoomId] = useState("");
   const [videoId, setVideoId] = useState("");
   const [roomState, setRoomState] = useState(null);
+  const [joinedUsersCount, setJoinedUsersCount] = useState(0); // Active tracking counter state
 
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState([]);
@@ -71,11 +72,17 @@ function App() {
       }
     };
 
+    // Participant count state synchronization receiver event
+    const handleUserCountChanged = (data) => {
+      setJoinedUsersCount(data.count);
+    };
+
     socket.on("video-changed", handleVideoChanged);
     socket.on("room-state", handleRoomState);
     socket.on("queue-updated", handleQueueUpdated);
     socket.on("play", handlePlay);
     socket.on("pause", handlePause);
+    socket.on("user-count-changed", handleUserCountChanged);
 
     return () => {
       socket.off("video-changed", handleVideoChanged);
@@ -83,6 +90,7 @@ function App() {
       socket.off("queue-updated", handleQueueUpdated);
       socket.off("play", handlePlay);
       socket.off("pause", handlePause);
+      socket.off("user-count-changed", handleUserCountChanged);
     };
   }, [token]);
 
@@ -154,6 +162,7 @@ function App() {
     setVideoId("");
     setQueue([]);
     setRoomState(null);
+    setJoinedUsersCount(0);
     showNotification("Disconnected gracefully from server nodes.", "error");
   };
 
@@ -170,6 +179,7 @@ function App() {
     setVideoId("");
     setQueue([]);
     setRoomState(null);
+    setJoinedUsersCount(0);
 
     socket.emit("join-room", { roomId: cleanRoomId });
     showNotification(`✨ Connected Successfully! Joined Room Channel: "${cleanRoomId}"`, "success");
@@ -323,9 +333,19 @@ function App() {
         <>
           {/* Global Navigation Header View - converted to matching frosted overlay */}
           <header className="border-b border-slate-800/60 bg-slate-900/60 backdrop-blur-md px-4 md:px-6 py-4 flex flex-col sm:flex-row items-center justify-between gap-3 sm:gap-0 shadow-md shrink-0">
-            <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent flex items-center gap-2">
-              <span>🎵</span> MusicRoom Sync
-            </h1>
+            <div className="flex items-center gap-4">
+              <h1 className="text-xl font-bold tracking-tight bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent flex items-center gap-2">
+                <span>🎵</span> MusicRoom Sync
+              </h1>
+
+              {/* Dynamic participant dashboard counter element badge */}
+              {roomState && (
+                <div className="bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-semibold tracking-wider uppercase px-2.5 py-1 rounded-full flex items-center gap-1.5 animate-fadeIn">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>{joinedUsersCount} {joinedUsersCount === 1 ? "User Online" : "Users Online"}</span>
+                </div>
+              )}
+            </div>
             
             <div className="flex flex-col sm:flex-row w-full sm:w-auto items-center gap-3 sm:gap-4">
               <div className="flex w-full sm:w-auto gap-2">
@@ -375,7 +395,7 @@ function App() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && searchSongs()}
-                    className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="w-full bg-slate-950/70 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                   <button onClick={searchSongs} className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-3 py-2 rounded-xl text-xs uppercase shrink-0">
                     Find

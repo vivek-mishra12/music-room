@@ -27,12 +27,20 @@ const roomSocket = (io) => {
       await redisClient.set(getRoomKey(roomId), JSON.stringify(state));
     };
 
+    // Helper to emit the updated participant count to a room
+    const broadcastUserCount = (roomId) => {
+      const userCount = io.sockets.adapter.rooms.get(roomId)?.size || 0;
+      io.to(roomId).emit("user-count-changed", { count: userCount });
+      console.log(`Broadcasted active count for room ${roomId}: ${userCount}`);
+    };
+
     // Join Room
     socket.on("join-room", async (data) => {
       const roomId = extractRoomId(data);
       if (!roomId) return;
 
       socket.join(roomId);
+      socket.currentRoomId = roomId; // Track the room ID on the socket instance for disconnect event
 
       let currentState = await getRoomState(roomId);
 
@@ -49,6 +57,9 @@ const roomSocket = (io) => {
 
       // Send the current snapshot state exclusively to the user who just joined
       socket.emit("room-state", currentState);
+
+      // Broadcast the updated user count to everyone in the room
+      broadcastUserCount(roomId);
 
       // Explicitly trigger a track change for the new user if music is already playing in this room
       if (currentState.videoId) {
@@ -162,6 +173,11 @@ const roomSocket = (io) => {
     // Disconnect
     socket.on("disconnect", () => {
       console.log(`User disconnected: ${socket.user.username}`);
+      
+      // If the user was in a room, update and notify remaining room members
+      if (socket.currentRoomId) {
+        broadcastUserCount(socket.currentRoomId);
+      }
     });
   });
 };
