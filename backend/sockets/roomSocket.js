@@ -158,13 +158,15 @@ const roomSocket = (io) => {
       }
     });
 
-    // Chat Message
+    // Chat Message (FIXED: Room Isolation Secured)
     socket.on("chat-message", (data) => {
-      if (!data) return;
-      const roomId = extractRoomId(data);
-      if (!roomId) return;
+      if (!data || !data.message) return;
+      
+      // Enforce cross-room containment via internal context tracking 
+      const targetRoomId = socket.currentRoomId;
+      if (!targetRoomId) return;
 
-      io.to(roomId).emit("chat-message", {
+      io.to(targetRoomId).emit("chat-message", {
         sender: socket.user.username,
         text: data.message,
       });
