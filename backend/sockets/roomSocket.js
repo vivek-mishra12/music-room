@@ -1,4 +1,4 @@
-// sockets/roomSocket.js
+// backend/sockets/roomSocket.js
 const redisClient = require("../config/redis"); // Import the centralized Redis Client
 
 const roomSocket = (io) => {
@@ -29,6 +29,7 @@ const roomSocket = (io) => {
 
     // Helper to emit the updated participant count to a room
     const broadcastUserCount = (roomId) => {
+      if (!roomId) return;
       const userCount = io.sockets.adapter.rooms.get(roomId)?.size || 0;
       io.to(roomId).emit("user-count-changed", { count: userCount });
       console.log(`Broadcasted active count for room ${roomId}: ${userCount}`);
@@ -39,8 +40,17 @@ const roomSocket = (io) => {
       const roomId = extractRoomId(data);
       if (!roomId) return;
 
-      socket.join(roomId);
-      socket.currentRoomId = roomId; // Track the room ID on the socket instance for disconnect event
+      const oldRoomId = socket.currentRoomId;
+
+      // If switching rooms, explicitly leave the old room first
+      if (oldRoomId && oldRoomId !== roomId) {
+        socket.leave(oldRoomId);
+        broadcastUserCount(oldRoomId); // Update remaining users in the old room
+      }
+
+      // FIXED: Await the asynchronous room joining process before reading the adapter size
+      await socket.join(roomId);
+      socket.currentRoomId = roomId; // Track the room ID on the socket instance
 
       let currentState = await getRoomState(roomId);
 
@@ -58,7 +68,7 @@ const roomSocket = (io) => {
       // Send the current snapshot state exclusively to the user who just joined
       socket.emit("room-state", currentState);
 
-      // Broadcast the updated user count to everyone in the room
+      // Broadcast the updated user count to everyone in the room (now reflects the accurate count)
       broadcastUserCount(roomId);
 
       // Explicitly trigger a track change for the new user if music is already playing in this room
@@ -158,11 +168,10 @@ const roomSocket = (io) => {
       }
     });
 
-    // Chat Message (FIXED: Room Isolation Secured)
+    // Chat Message
     socket.on("chat-message", (data) => {
       if (!data || !data.message) return;
       
-      // Enforce cross-room containment via internal context tracking 
       const targetRoomId = socket.currentRoomId;
       if (!targetRoomId) return;
 
