@@ -1,10 +1,9 @@
+// frontend/src/Chat.jsx
 import { useState, useEffect, useRef } from "react";
-import { useSelector, useDispatch } from "react-redux"; // Added useDispatch hook import
+import { useSelector } from "react-redux";
 import socket from "./socket";
 
 function Chat({ roomId, showNotification }) {
-  const dispatch = useDispatch(); // Initialized the dispatch variable to fix the error!
-
   // Pull the current username safely from the global Redux store layer
   const { username } = useSelector((state) => state.room || {});
 
@@ -46,8 +45,8 @@ function Chat({ roomId, showNotification }) {
     }
 
     // Emit message transaction block to server
+    // (FIXED: No longer sending roomId in payload to adhere to strict backend isolation rules)
     socket.emit("chat-message", {
-      roomId,
       message: message.trim(),
     });
 
