@@ -1,38 +1,42 @@
-import { useState, useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
+import { useSelector, useDispatch } from "react-redux";
 import YouTube from "react-youtube";
 import axios from "axios";
 import socket from "./socket";
 import Chat from "./Chat";
 import GeminiDJ from "./components/GeminiDJ";
 import "./index.css";
+import {
+  setAuth,
+  clearAuth,
+  setRoomId,
+  setVideoId,
+  setIsPlaying,
+  setJoinedUsersCount,
+  setQueue,
+  setRoomState,
+} from "./store/roomSlice";
 
 // Dynamic API Base URL definition to reach your deployed backend
 const API_BASE_URL = "https://music-room-1-ocnj.onrender.com";
 
 function App() {
-  // Authentication & User Session Layer
-  const [token, setToken] = useState(localStorage.getItem("token") || "");
-  const [username, setUsername] = useState(localStorage.getItem("username") || "");
+  const dispatch = useDispatch();
+
+  // Extract shared state directly from centralized Redux Toolkit store layer
+  const { token, username, roomId, videoId, roomState, joinedUsersCount, queue, isPlaying } = 
+    useSelector((state) => state.room);
+
+  // Local state purely for localized transient form fields and alerts
   const [authEmail, setAuthEmail] = useState("");
   const [authPassword, setAuthPassword] = useState("");
   const [authUsername, setAuthUsername] = useState("");
   const [isRegistering, setIsRegistering] = useState(false);
-
-  // Music Room Dashboard Core State
-  const [roomId, setRoomId] = useState("");
-  const [videoId, setVideoId] = useState("");
-  const [roomState, setRoomState] = useState(null);
-  const [joinedUsersCount, setJoinedUsersCount] = useState(0); // Active tracking counter state
-
   const [searchQuery, setSearchQuery] = useState("");
   const [results, setResults] = useState([]);
-  const [queue, setQueue] = useState([]);
-  
-  // Custom Toast Message State Layer
   const [toast, setToast] = useState({ visible: false, message: "", type: "success" });
   
   const playerRef = useRef(null);
-  const [isPlaying, setIsPlaying] = useState(false);
 
   // Helper trigger to handle smooth auto-dismissing notification banners
   const showNotification = (message, type = "success") => {
@@ -51,30 +55,26 @@ function App() {
       socket.disconnect(); 
     }
 
-    const handleVideoChanged = (id) => setVideoId(id);
-    const handleRoomState = (data) => {
-      setRoomState(data);
-      if (data.videoId) setVideoId(data.videoId);
-      if (data.queue) setQueue(data.queue);
-    };
-    const handleQueueUpdated = (newQueue) => setQueue(newQueue);
+    const handleVideoChanged = (id) => dispatch(setVideoId(id));
+    const handleRoomState = (data) => dispatch(setRoomState(data));
+    const handleQueueUpdated = (newQueue) => dispatch(setQueue(newQueue));
     
     const handlePlay = () => {
       if (playerRef.current && typeof playerRef.current.playVideo === "function") {
         playerRef.current.playVideo();
-        setIsPlaying(true);
+        dispatch(setIsPlaying(true));
       }
     };
     const handlePause = () => {
       if (playerRef.current && typeof playerRef.current.pauseVideo === "function") {
         playerRef.current.pauseVideo();
-        setIsPlaying(false);
+        dispatch(setIsPlaying(false));
       }
     };
 
     // Participant count state synchronization receiver event
     const handleUserCountChanged = (data) => {
-      setJoinedUsersCount(data.count);
+      dispatch(setJoinedUsersCount(data.count));
     };
 
     socket.on("video-changed", handleVideoChanged);
@@ -92,7 +92,7 @@ function App() {
       socket.off("pause", handlePause);
       socket.off("user-count-changed", handleUserCountChanged);
     };
-  }, [token]);
+  }, [token, dispatch]);
 
   // Periodic Playback timestamp sync loop
   useEffect(() => {
@@ -124,11 +124,7 @@ function App() {
         password: authPassword,
       });
       
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("username", res.data.username);
-      
-      setUsername(res.data.username);
-      setToken(res.data.token);
+      dispatch(setAuth({ token: res.data.token, username: res.data.username }));
       showNotification(`Welcome back, ${res.data.username}!`, "success");
     } catch (err) {
       showNotification(err.response?.data?.message || "Invalid Email or Password Credentials", "error");
@@ -148,38 +144,26 @@ function App() {
       showNotification("Registration successful! Please log in.", "success");
       setIsRegistering(false);
     } catch (err) {
-      showNotification(err.response?.data?.message || "Signup registration execution failed", "error");
+      showNotification(err.response?.data?.message || "Signup registration failed", "error");
     }
   };
 
+  // FIXED: Removed the self-calling recursion loop that caused maximum stack errors
   const handleLogout = () => {
     localStorage.removeItem("token");
     localStorage.removeItem("username");
     
-    setToken("");
-    setUsername("");
-    setRoomId("");
-    setVideoId("");
-    setQueue([]);
-    setRoomState(null);
-    setJoinedUsersCount(0);
+    dispatch(clearAuth());
     showNotification("Disconnected gracefully from server nodes.", "error");
   };
 
   // --- Core Application Dashboard Handlers ---
   const joinRoom = () => {
     const cleanRoomId = roomId.trim();
-
     if (!cleanRoomId) {
       showNotification("Please enter a valid Room ID key!", "error");
       return;
     }
-
-    // Explicitly clean state variables before loading data context for a fresh room channel
-    setVideoId("");
-    setQueue([]);
-    setRoomState(null);
-    setJoinedUsersCount(0);
 
     socket.emit("join-room", { roomId: cleanRoomId });
     showNotification(`✨ Connected Successfully! Joined Room Channel: "${cleanRoomId}"`, "success");
@@ -194,7 +178,6 @@ function App() {
       });
       setResults(res.data);
     } catch (err) {
-      console.log(err);
       showNotification("YouTube search query retrieval failed", "error");
     }
   };
@@ -224,7 +207,7 @@ function App() {
 
   const playSong = (song) => {
     if (!roomId.trim()) return;
-    setVideoId(song.videoId);
+    dispatch(setVideoId(song.videoId));
     socket.emit("change-video", { roomId: roomId.trim(), videoId: song.videoId });
   };
 
@@ -262,7 +245,6 @@ function App() {
       {/* RENDER VIEW CONTEXT SPLITTER */}
       {!token ? (
         <div className="flex-1 flex items-center justify-center p-4">
-          {/* Changed card from bg-[#0f1524]/60 to semi-transparent glass backdrop */}
           <div className="w-full max-w-md bg-slate-900/40 border border-slate-700/30 p-8 rounded-3xl shadow-2xl backdrop-blur-xl">
             <div className="text-center mb-6">
               <h2 className="text-2xl font-extrabold bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent mb-1">
@@ -352,7 +334,7 @@ function App() {
                 <input
                   placeholder="Enter Room ID Key..."
                   value={roomId}
-                  onChange={(e) => setRoomId(e.target.value)}
+                  onChange={(e) => dispatch(setRoomId(e.target.value))}
                   className="flex-1 sm:flex-none bg-slate-950/70 border border-slate-700/50 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:ring-1 focus:ring-emerald-500 font-mono"
                 />
                 <button 
@@ -395,7 +377,7 @@ function App() {
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={(e) => e.key === "Enter" && searchSongs()}
-                    className="w-full bg-slate-950/70 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    className="flex-1 bg-slate-950/70 border border-slate-800/80 rounded-xl px-3 py-2 text-xs text-slate-200 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
                   />
                   <button onClick={searchSongs} className="bg-slate-800 hover:bg-slate-700 text-white font-bold px-3 py-2 rounded-xl text-xs uppercase shrink-0">
                     Find
@@ -454,14 +436,14 @@ function App() {
 
                           if (roomState.playState === "playing") {
                             playerRef.current.playVideo();
-                            setIsPlaying(true);
+                            dispatch(setIsPlaying(true));
                           } else {
                             playerRef.current.pauseVideo();
-                            setIsPlaying(false);
+                            dispatch(setIsPlaying(false));
                           }
                         }}
-                        onPlay={() => setIsPlaying(true)}
-                        onPause={() => setIsPlaying(false)}
+                        onPlay={() => dispatch(setIsPlaying(true))}
+                        onPause={() => dispatch(setIsPlaying(false))}
                       />
                     </div>
                   ) : (
