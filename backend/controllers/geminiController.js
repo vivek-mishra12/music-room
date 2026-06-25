@@ -11,8 +11,10 @@ const recommendSongs = async (req, res) => {
 
         // Call the Gemini model using correct @google/genai SDK syntax
         const response = await ai.models.generateContent({
-            model: 'gemini-2.5-flash',
-            contents: `Recommend a list of tracks based on this request: ${userPrompt}. Provide the response as a clean JSON array of strings containing track names and artists.`,
+            model: 'gemini-3.5-flash',
+            contents: `You are an expert AI DJ inside a virtual synchronized music room. 
+                       The user wants music recommendations for the following mood/theme: "${userPrompt}". 
+                       Provide a short, friendly response and list exactly 5 specific song titles with their artists.`,
         });
 
         res.status(200).json({ 
