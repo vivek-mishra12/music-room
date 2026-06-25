@@ -3,33 +3,25 @@ const ai = require('../config/gemini');
 
 const recommendSongs = async (req, res) => {
     try {
-        const { prompt } = require('express');
         const userPrompt = req.body.prompt;
 
         if (!userPrompt) {
             return res.status(400).json({ success: false, message: "Prompt is required" });
         }
 
-        // We use 'gemini-2.5-flash' for optimized speed and low-cost text generation
+        // Call the Gemini model using correct @google/genai SDK syntax
         const response = await ai.models.generateContent({
-            model: 'gemini-3.5-flash',
-            contents: `You are an expert AI DJ inside a virtual synchronized music room. 
-                       The user wants music recommendations for the following mood/theme: "${userPrompt}". 
-                       Provide a short, friendly response and list exactly 5 specific song titles with their artists.`,
+            model: 'gemini-2.5-flash',
+            contents: `Recommend a list of tracks based on this request: ${userPrompt}. Provide the response as a clean JSON array of strings containing track names and artists.`,
         });
 
-        return res.status(200).json({
-            success: true,
-            recommendation: response.text
+        res.status(200).json({ 
+            success: true, 
+            recommendations: response.text 
         });
-
     } catch (error) {
-        console.error("Gemini Generation Error:", error.message);
-        return res.status(500).json({
-            success: false,
-            message: "AI failed to process your recommendation request.",
-            error: error.message
-        });
+        console.error("Gemini Error:", error);
+        res.status(500).json({ success: false, message: "Internal Server Error" });
     }
 };
 
