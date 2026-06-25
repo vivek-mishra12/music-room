@@ -3,6 +3,6 @@ const express = require('express');
 const router = express.Router();
 const { recommendSongs } = require('../controllers/geminiController');
 
-router.post('/recommend', recommendSongs);
+router.post('/suggest', recommendSongs);
 
 module.exports = router;
